@@ -8,6 +8,8 @@ All notable changes to this project are recorded here using semantic versioning.
 - Adopt `maliphors-inator` across the repository, workspace, current documentation, GUI, CLI, runtime modules, and daily launcher. See [REBRANDING.md](REBRANDING.md) for migration and validation. Earlier branding entries below describe their original changes.
 
 ### Added
+- 0.1.0.dev1 upgrade: four focused views; shared desktop/CLI data directory with automatic legacy copying; startup backups, verified restore preview and rollback; persistent ratings/avoidance and More Like This; editable import review; cancellable worker operations.
+- Linux wheel and installer archive, optional Qt dependencies, shared version source, and GitHub GUI-test/package workflow. See [upgrade guide](docs/UPGRADES.md).
 - 2026-11-11: Offline Help menu, first-launch guidance, temporary demo, real-control feature tour, guided tasks, F1 context help, searchable articles, troubleshooting diagnostics and Ctrl+Shift+P action palette. Daily snapshots include help content.
 - FAQ, code of conduct, documentation index, license reference, template coverage map and app screenshots; completed contributor/release/architecture guidance and private reporting contact.
 - Installable Linux Daily Test snapshot with desktop/menu launchers, a dedicated environment, separate persistent data, 14 startup backups, rotating logs, and a single-session lock.

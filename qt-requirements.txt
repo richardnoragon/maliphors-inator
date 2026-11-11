@@ -1,0 +1,3 @@
+# Optional standalone Qt JSON editor and log viewer.
+PyQt5>=5.15.11,<6
+PyQt6>=6.5,<7

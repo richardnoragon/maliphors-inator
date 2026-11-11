@@ -322,7 +322,7 @@ def test_save_history_entry_persists_history(sample_generator, tmp_path, monkeyp
     }
 
     assert sample_generator._save_history_entry(entry) is True
-    data = json.loads(Path("history.json").read_text(encoding="utf-8"))
+    data = json.loads(sample_generator.data_path("history.json").read_text(encoding="utf-8"))
     assert data[-1]["malaphor"] == "Saved malaphor"
     assert "timestamp" in data[-1]
 
@@ -337,7 +337,7 @@ def test_save_history_entry_preserves_language_metadata(sample_generator, tmp_pa
     }
 
     assert sample_generator._save_history_entry(entry) is True
-    data = json.loads(Path("history.json").read_text(encoding="utf-8"))
+    data = json.loads(sample_generator.data_path("history.json").read_text(encoding="utf-8"))
     assert data[-1]["language"] == "es"
 
 
@@ -1143,7 +1143,7 @@ def test_history_page_and_move_proverb(sample_generator, tmp_path, monkeypatch):
 def test_auto_save_runs_and_persists_state(tmp_path, monkeypatch):
     """Test the periodic auto-save persists history and favorites."""
     monkeypatch.chdir(tmp_path)
-    generator = MalaphorGenerator()
+    generator = MalaphorGenerator(data_dir=tmp_path)
     generator.history = [{"malaphor": "Alpha", "source1": "A", "source2": "B", "timestamp": "2026-09-10T00:00:00+00:00"}]
     generator.favorites = ["Alpha"]
 

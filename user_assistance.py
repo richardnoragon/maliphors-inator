@@ -1,40 +1,177 @@
 """Offline user assistance for the Tk desktop, with no independent data writer."""
 from pathlib import Path
 import re
+import os
+import subprocess
 import tkinter as tk
 from tkinter import ttk, messagebox
+from app_resources import resource_path
 
 ROOT = Path(__file__).resolve().parent
 CONTACT = 'richardnoragon@mac.com'
 
 # Topic id -> (title, keywords, description/body, related topic ids).
-TOPICS = {
-    'start': ('Getting Started', 'welcome first launch onboarding create new begin',
-        'Combine two source phrases to make a malaphor. Source phrases are the ingredients; history stores generated results; favorites keep the results you choose.\n\n1. Use the bundled library, Add New Proverb, or Import Malaphors.\n2. Keep language set to all and click Generate. At least two different phrases are needed.\n3. Click Add to Favorites.\n4. Open Manage History or Manage Favorites to find your saved result.\n5. Press F1 whenever you need help.\n\nGetting Started can be replayed from Help. Try Demo uses a separate temporary library and never replaces your saved library.', ('concepts', 'generate', 'import')),
-    'concepts': ('Core Concepts', 'library libraries phrase phrases item items tags categories source metadata learning center why',
-        'The library is the proverbs list in malaphors.json. Each phrase has original text, a beginning and an ending. Generation combines two phrases. Language and tags optionally restrict the ingredients. Tags/categories need at least two matching phrases.\n\nHistory records results and their sources. Favorites are saved displayed strings. Editing a source does not rename all historical results. Undo/redo covers supported deletions in the current session; it is not a backup.', ('generate', 'advanced', 'backup')),
-    'generate': ('Generate and Save a Favorite', 'generate generation random smart favorites favorite save first task',
-        'Keep language all for your first result. Click Generate, review the sources, then Add to Favorites. Manage Favorites searches saved results and exports JSON or text. Manage History searches generated results.\n\nManual Combine searches source phrases in two lists; choose one on each side and combine. A language or category filter needs two different matching phrases. Smart generation uses saved pair ratings; ordinary generation is the default.', ('concepts', 'search', 'backup')),
-    'search': ('Search and Manage Content', 'find search searching edit delete phrases history favorites empty',
-        'Manage Phrases lists source phrases and supports editing. Manual Combine has separate search boxes for its two source lists. Manage History filters generated results; Manage Favorites filters saved strings.\n\nIf a search has no results, clear the filter and try a shorter term. Search Help searches documentation, not your personal phrase data. Ctrl+F opens Manual Combine and focuses its first search box.', ('generate', 'import', 'trouble')),
-    'import': ('Import Source Phrases', 'import importing json merge add create proverb phrase',
-        'Before import, close other writers and back up your local JSON files. Import Malaphors accepts an object with a proverbs list. Every phrase requires original, beginning and ending strings; language, source and tags are optional.\n\nExample:\n{"proverbs": [{"original": "A stitch in time saves nine", "beginning": "A stitch in time", "ending": "saves nine"}]}\n\nImport merges exact-original duplicates once. Invalid fields reject the import; failed saves preserve the active library. A duplicate-only file adds nothing. History/favorites exports and text files are not phrase import files. Cancel makes no change.', ('backup', 'export', 'trouble')),
-    'export': ('Export and Share', 'export exporting image png svg share format file formats',
-        'Export Originals saves the phrase library; Export Generated saves history. Manage Favorites offers Export Favorites. Choose JSON for structured data or text for reading. Only phrase-library JSON is a phrase import format. Copy copies the displayed result. Image export supports PNG (Pillow) and SVG.\n\nAn export of phrases alone is not a complete backup. Check the chosen path before replacing a file.', ('import', 'backup', 'advanced')),
-    'backup': ('Backups and Recovery', 'backup backups restore recovery corrupt corrupted missing files storage paths migration synchronization',
-        'Use one writer per data directory. Close the app and wait for CLI commands to finish before copying/restoring data. Back up malaphors.json, history.json, favorites.json and any ratings.json, generation_templates.json, settings_profiles.json and ui_preferences.json present.\n\nKeep a separate copy of current files before restoring known-good JSON, then reopen. If startup reports unreadable files, preserve them and restore a backup; do not continue editing that recovery session.\n\nSource launches have no automatic backup. Daily Test keeps 14 startup ZIP backups in its data/backups directory. Extract a ZIP elsewhere first, inspect its JSON, then copy into the closed app data directory. Undo is not a backup. See USER_GUIDE.md for the complete restore procedure.', ('trouble', 'advanced', 'export')),
-    'advanced': ('Advanced Concepts and Tools', 'power user profiles ratings weighted templates tags statistics theme architecture learning center automation',
-        'Power User Tools exposes generation, ratings, templates, comparisons and settings profiles. Tag Management and Generate by Category use phrase metadata. Gallery and Statistics browse saved generation information. Theme switches appearance.\n\nEach process loads local state into memory. There is no cross-process synchronization, database, plugin host or network help service. File operations can briefly block the UI. JSON writes use atomic replacement, but a collection of files is not one transaction. Advanced features have narrower validation than core workflows. Read ARCHITECTURE.md and USER_GUIDE.md for boundaries.', ('concepts', 'backup', 'shortcuts')),
-    'trouble': ('Troubleshooting', 'error failure failed cannot no data empty permissions display tkinter missing performance',
-        'No result? Check that at least two different phrases match; choose all languages or add/import phrases.\n\nNo search matches? Clear the filter, try a shorter term and confirm you opened the intended data directory.\n\nSave/import/export failed? Check the chosen path, free space and file permissions. Preserve current files before retrying. Never delete a protected unreadable file just to suppress a warning.\n\nWrong library? Data comes from the working directory; Daily Test has separate data.\n\nUI pauses? Large file operations currently run synchronously. Let them finish; use smaller imports and report reproducible performance issues.\n\nCannot start Tk? Install Tk support and use a graphical session for desktop windows. CLI actions need Tk installed but no display. Help → Troubleshooting shows read-only diagnostics and suggested next actions.', ('backup', 'import', 'report')),
-    'shortcuts': ('Keyboard Shortcuts', 'keyboard shortcuts keys hotkeys reference navigation',
-        'F1: context help for the active screen\nCtrl+Shift+P: search actions\nCtrl+G: generate\nCtrl+C: copy displayed result (normal text copy remains available inside text fields)\nCtrl+H: manage history\nCtrl+F: source phrase search in Manual Combine\nCtrl+S: add displayed result to favorites\nCtrl+Z: undo a supported deletion\nCtrl+Y or Ctrl+Shift+Z: redo\n\nIn help: Tab moves focus, Enter opens the selected topic/action, Escape closes the window. Tour and guided-task buttons work with Tab and Space.', ('search', 'generate')),
-    'report': ('Report Problem', 'bug issue contact security vulnerability conduct feedback',
-        'Ordinary bugs: https://github.com/richardnoragon/maliphors-inator/issues\n\nInclude revision/build, OS/Python, steps, expected/actual behavior and whether it reproduces with disposable data. Remove private phrases, paths and credentials before sharing logs.\n\nSecurity vulnerabilities and confidential conduct reports: richardnoragon@mac.com. Do not publish sensitive details in an issue. Nothing is sent automatically from this help window.', ('trouble',)),
-    'about': ('About maliphors-inator', 'about license version release pre alpha',
-        'maliphors-inator combines idioms and proverbs in a local Python/Tk desktop app and CLI. Previously malaphors-rs / Malaphors-inator.\n\nStage: pre-alpha. Historical technical alpha checks passed; human usability review and independent developer handoff remain open. Package metadata and historical changelog versions do not declare alpha readiness.\n\nProprietary license: see LICENSE. Contact: richardnoragon@mac.com. Offline help does not send telemetry or personal data.', ('start', 'report')),
-}
-
+TOPICS = {'start': ('Getting Started',
+           'welcome first launch onboarding create new begin',
+           'Use Generate for results, Library for source phrases, and Favorites/History for saved output. '
+           'First launch copies existing data to the shared store without moving originals. The data path '
+           'appears in the footer.\n'
+           '\n'
+           '1. Choose all languages and click Generate (at least two matching sources).\n'
+           '2. Copy or Add to Favorites.\n'
+           '3. Rate it, ask for More Like This, or Avoid This Combination.\n'
+           '4. Find saved results in Favorites or History.\n'
+           '5. Press F1 for the current view or Help for tours and guided tasks.\n'
+           '\n'
+           'Create New Phrase and Import Existing Data use your active store. Try Demo opens a separate '
+           'temporary store. Skip onboarding and replay it later from Help.',
+           ('concepts', 'generate', 'import')),
+ 'concepts': ('Core Concepts',
+              'library libraries phrase phrases item items tags categories source metadata learning center '
+              'why',
+              'The library is the proverbs list in malaphors.json. Each phrase has original text, a '
+              'beginning and an ending. Generation combines two phrases. Language and tags optionally '
+              'restrict the ingredients. Tags/categories need at least two matching phrases.\n'
+              '\n'
+              'History records results and their sources. Favorites are saved displayed strings. Editing a '
+              'source does not rename all historical results. Undo/redo covers supported deletions in the '
+              'current session; it is not a backup.',
+              ('generate', 'advanced', 'backup')),
+ 'generate': ('Generate and Save a Favorite',
+              'generate generation random smart favorites favorite save first task',
+              'Generate combines two different matching source phrases. Random choices use saved ratings, '
+              'skip avoided ordered pairs and prefer outputs not among the latest 20 saved results. If fresh '
+              'combinations run out, an unblocked result may repeat.\n'
+              '\n'
+              'More Like This prefers combinations sharing a source with the displayed result. Avoid This '
+              'Combination persists that ordered pair; undo it with Advanced → Manage Avoided Combinations. '
+              'Rate 1–5, then Save Rating. These are local heuristics.\n'
+              '\n'
+              'Copy shares the displayed text; Add to Favorites keeps it. Favorites and History have '
+              'separate tabs and filters. Manual Combine and Batch Generation are under Advanced.',
+              ('concepts', 'search', 'backup')),
+ 'search': ('Search and Manage Content',
+            'find search searching edit delete phrases history favorites empty',
+            'Library searches original source phrase text. Manage Phrases edits/deletes source records. '
+            'Favorites and History filter saved results in their own tabs and offer management/export '
+            'dialogs. Advanced → Manual Combine provides separate source selectors.\n'
+            '\n'
+            'Ctrl+F focuses Library search. If nothing matches, clear the filter or try a shorter term. '
+            'Search Help searches documentation, not your personal data. Ctrl+Shift+P finds actions across '
+            'tabs and Advanced.',
+            ('generate', 'import', 'trouble')),
+ 'import': ('Import Source Phrases',
+            'import importing json merge add create proverb phrase',
+            'Library → Import Malaphors reads JSON into a review table before saving. Rows are new, '
+            'duplicate or invalid. Select a row, edit its JSON object, Save Row Correction, or toggle '
+            'Include / Exclude Selected. Included invalid rows block import; excluded rows are ignored; '
+            'exact-original duplicates are skipped. Apply Reviewed Import revalidates, backs up, saves once, '
+            'then refreshes search.\n'
+            '\n'
+            'JSON requires {"proverbs": [{"original": "A stitch in time saves nine", "beginning": "A stitch '
+            'in time", "ending": "saves nine"}]}. Optional language/source are text and tags is a text list. '
+            'The preview accepts files up to 25 MB. History/favorites/text exports are not phrase import '
+            'formats. Cancel before commit leaves data unchanged.',
+            ('backup', 'export', 'trouble')),
+ 'export': ('Export and Share',
+            'export exporting image png svg share format file formats',
+            'Export Originals saves the phrase library; Export Generated saves history. Manage Favorites '
+            'offers Export Favorites. Choose JSON for structured data or text for reading. Only '
+            'phrase-library JSON is a phrase import format. Copy copies the displayed result. Image export '
+            'supports PNG (Pillow) and SVG.\n'
+            '\n'
+            'An export of phrases alone is not a complete backup. Check the chosen path before replacing a '
+            'file.',
+            ('import', 'backup', 'advanced')),
+ 'backup': ('Backups and Recovery',
+            'backup backups restore recovery corrupt corrupted missing files storage paths migration '
+            'synchronization',
+            'The desktop footer shows the explicit shared data directory. Normal desktop and CLI default to '
+            'the XDG store and support --data-dir or MALIPHORS_INATOR_DATA_DIR. First default launch copies '
+            'legacy data without deleting originals. Normal entry points hold a single-writer session lock.\n'
+            '\n'
+            'Backups / Restore lists snapshots and creates portable ZIPs. Startup retains the latest 14 '
+            'startup snapshots; reviewed imports and cleanup keep pre-change backups. Restore preview lists '
+            'replacements, validates known filenames/schemas/checksums and asks approval. Missing archive '
+            'files remain unchanged. A safety backup precedes replacement; failures roll back replaced files '
+            'and report recovery needs.\n'
+            '\n'
+            'For manual copies/restores close all writers first. The old Daily Test is still a separate '
+            'sandbox. Keep external backups. See USER_GUIDE.md and the upgrade guide for migration '
+            'precedence and the 100 MB restore limit.',
+            ('trouble', 'advanced', 'export')),
+ 'advanced': ('Advanced Concepts and Tools',
+              'power user profiles ratings weighted templates tags statistics theme architecture learning '
+              'center automation',
+              'Advanced contains Manual Combine, Batch Generation, tags/categories, '
+              'ratings/templates/profiles, statistics, gallery, image export and cleanup. Core Concepts '
+              'explains source phrases, generated history and favorites.\n'
+              '\n'
+              'Import, cleanup, backup and batch workflows use background workers with '
+              'progress/cancellation. Cancel is checked between records or before save; an atomic commit '
+              'already underway finishes safely. Batch cancellation keeps completed results. Some legacy '
+              'advanced single-result actions remain synchronous.\n'
+              '\n'
+              'The app uses local JSON, no network service or external AI. Session locks prevent another '
+              'normal desktop/CLI writer, but there is no cross-computer synchronization or power-loss '
+              'transaction spanning all state files.',
+              ('concepts', 'backup', 'shortcuts')),
+ 'trouble': ('Troubleshooting',
+             'error failure failed cannot no data empty permissions display tkinter missing performance',
+             'No result? Choose all languages and ensure two different matching source phrases. If pairs are '
+             'blocked, use Advanced → Manage Avoided Combinations.\n'
+             '\n'
+             'Wrong library? Check the footer or CLI --data-path. Desktop/CLI resolve --data-dir, then '
+             'MALIPHORS_INATOR_DATA_DIR, then the XDG store. The old Daily Test remains separate.\n'
+             '\n'
+             'Another session error? Close the other desktop/CLI writer for that directory.\n'
+             '\n'
+             'Import blocked? Correct included invalid rows or exclude them in the review table; check the '
+             '25 MB file limit. Save failed? Check paths, permissions and space, retaining backups.\n'
+             '\n'
+             'Unreadable saved data? Use Backups / Restore to inspect and restore a known-good snapshot. '
+             'Preserve originals. If rollback reports a failure, inspect its safety backup.\n'
+             '\n'
+             'Long operation? The upgraded workflows show progress and Cancel; a commit underway finishes '
+             'safely. Some legacy advanced actions still run synchronously. Diagnostics below are read-only.',
+             ('backup', 'import', 'report')),
+ 'shortcuts': ('Keyboard Shortcuts',
+               'keyboard shortcuts keys hotkeys reference navigation',
+               'F1: context help for the active screen\n'
+               'Ctrl+Shift+P: search actions\n'
+               'Ctrl+G: generate\n'
+               'Ctrl+C: copy displayed result (normal text copy remains available inside text fields)\n'
+               'Ctrl+H: manage history\n'
+               'Ctrl+F: focus source search in Library\n'
+               'Ctrl+S: add displayed result to favorites\n'
+               'Ctrl+Z: undo a supported deletion\n'
+               'Ctrl+Y or Ctrl+Shift+Z: redo\n'
+               '\n'
+               'In help: Tab moves focus, Enter opens the selected topic/action, Escape closes the window. '
+               'Tour and guided-task buttons work with Tab and Space.',
+               ('search', 'generate')),
+ 'report': ('Report Problem',
+            'bug issue contact security vulnerability conduct feedback',
+            'Ordinary bugs: https://github.com/richardnoragon/maliphors-inator/issues\n'
+            '\n'
+            'Include revision/build, OS/Python, steps, expected/actual behavior and whether it reproduces '
+            'with disposable data. Remove private phrases, paths and credentials before sharing logs.\n'
+            '\n'
+            'Security vulnerabilities and confidential conduct reports: richardnoragon@mac.com. Do not '
+            'publish sensitive details in an issue. Nothing is sent automatically from this help window.',
+            ('trouble',)),
+ 'about': ('About maliphors-inator',
+           'about license version release pre alpha',
+           'maliphors-inator combines idioms and proverbs in a local Python/Tk desktop app and CLI. '
+           'Previously malaphors-rs / Malaphors-inator.\n'
+           '\n'
+           'Stage: pre-alpha. Historical technical alpha checks passed; human usability review and '
+           'independent developer handoff remain open. Package metadata and historical changelog versions do '
+           'not declare alpha readiness.\n'
+           '\n'
+           'Proprietary license: see LICENSE. Contact: richardnoragon@mac.com. Offline help does not send '
+           'telemetry or personal data.',
+           ('start', 'report'))}
 
 def search_topics(query):
     """AND-match normalized query words across title, keywords and article text."""
@@ -63,6 +200,10 @@ class UserAssistance:
         self.demo_process = None
         self.demo_directory = None
         menu = tk.Menu(self.root)
+        advanced = tk.Menu(menu, tearoff=False)
+        for label, command in app.action_commands.items():
+            advanced.add_command(label=label, command=command)
+        menu.add_cascade(label='Advanced', menu=advanced)
         help_menu = tk.Menu(menu, tearoff=False)
         for label, command in [
             ('Getting Started', self.welcome), ('Feature Tour', self.tour),
@@ -108,7 +249,11 @@ class UserAssistance:
     def context_help(self, event=None):
         widget = event.widget if event else self.root.focus_get()
         parent = widget.winfo_toplevel() if widget else self.root
-        self.show_help(context_topic(parent.title()), parent=parent)
+        topic = context_topic(parent.title())
+        if parent is self.root:
+            name = self.app.notebook.tab(self.app.notebook.select(), 'text')
+            topic = {'Generate': 'generate', 'Library': 'search', 'Favorites': 'generate', 'History': 'search'}[name]
+        self.show_help(topic, parent=parent)
         return 'break'
 
     def show_help(self, topic='start', parent=None):
@@ -166,7 +311,7 @@ class UserAssistance:
 
     def document(self, name, title):
         try:
-            content = (ROOT / name).read_text(encoding='utf-8')
+            content = resource_path(name).read_text(encoding='utf-8')
         except OSError:
             content = f'{name} is unavailable in this installation. Use Search Help for offline guidance.'
         win = self.window(title)
@@ -186,7 +331,7 @@ class UserAssistance:
         actions = ttk.Frame(win)
         actions.pack(fill='x', padx=12)
         ttk.Button(actions, text='Create New Phrase', command=self.app.show_add_proverb_dialog).pack(side='left', padx=3)
-        ttk.Button(actions, text='Import Existing Data', command=self.app.import_malaphors_dialog).pack(side='left', padx=3)
+        ttk.Button(actions, text='Import Existing Data', command=self.app.workflows.import_file).pack(side='left', padx=3)
         ttk.Button(actions, text='Try Demo', command=self.demo).pack(side='left', padx=3)
         ttk.Button(win, text='Feature Tour', command=self.tour).pack(pady=4)
         ttk.Button(win, text='Guide My First Result', command=lambda: self.guided_task('first')).pack(pady=4)
@@ -221,7 +366,7 @@ class UserAssistance:
                   'app = MaliphorsInatorApp(); '
                   'app.root.title("maliphors-inator — Temporary Demo"); app.run()')
         try:
-            process = subprocess.Popen([sys.executable, '-c', script, str(ROOT)], cwd=data)
+            process = subprocess.Popen([sys.executable, '-c', script, str(ROOT)], cwd=data, env={**os.environ, 'MALIPHORS_INATOR_DATA_DIR': str(data)})
         except OSError as exc:
             directory.cleanup()
             messagebox.showerror('Demo could not start', str(exc), parent=self.root)
@@ -262,7 +407,7 @@ class UserAssistance:
         steps = [('Manage Phrases', 'Your ingredients: inspect and edit source phrases.'),
                  ('Generate', 'Create a result using at least two different matching phrases.'),
                  ('Add to Favorites', 'Keep a generated result for later.'),
-                 ('Manual Combine', 'Search source phrases and select two to combine.'),
+                 ('More Like This', 'Keep a source you liked while finding fresh combinations; use Advanced for manual combinations.'),
                  ('Import Malaphors', 'Merge phrase JSON after making a backup.'),
                  ('Export Originals', 'Export phrases. History and favorites have separate exports.'),
                  ('Manage History', 'Find generated results. F1 opens context help on each screen.')]
@@ -275,6 +420,8 @@ class UserAssistance:
             self.clear_highlight()
             name, explanation = steps[position[0]]
             label.config(text=f'{position[0]+1} / {len(steps)} — {name}\n\n{explanation}\n\nThe highlighted control is in the main window. The tour does not click it for you.')
+            tab = {'Manage Phrases': 'Library', 'Import Malaphors': 'Library', 'Export Originals': 'Library', 'Manage History': 'History'}.get(name, 'Generate')
+            self.app.notebook.select(self.app.views[tab])
             self.root.update_idletasks()
             target = next((b for b in self.buttons() if b.cget('text') == name), None)
             if target:
@@ -327,7 +474,7 @@ class UserAssistance:
         elif kind == 'import':
             steps = [
                 ('Prepare', 'Requirements: close other writers and make a backup before import. Review the format, then confirm preparation below.', lambda: self.show_help('import'), None),
-                ('Import', 'Select phrase-library JSON. Cancel or duplicate-only import will not complete this step. Validation checks that the library grew.', self.app.import_malaphors_dialog, lambda: len(self.app.generator.proverbs) > phrases),
+                ('Import', 'Select phrase-library JSON. Cancel or duplicate-only import will not complete this step. Validation checks that the library grew.', self.app.workflows.import_file, lambda: len(self.app.generator.proverbs) > phrases),
                 ('Find Imported Phrases', 'Open Manual Combine, search for an imported phrase, then close the dialog. Confirm that you found it.', self.app.show_manual_combine_dialog, None)]
         else:
             steps = [
@@ -375,7 +522,7 @@ class UserAssistance:
     def troubleshoot(self):
         win = self.window('Troubleshooting', '720x540')
         g = self.app.generator
-        diagnostics = f'Data directory: {Path.cwd()}\nSource phrases: {len(g.proverbs)} | History: {len(g.history)} | Favorites: {len(g.favorites)}\nProtected unreadable files: {", ".join(p.name for p in g.load_errors) or "none"}\n\nThese checks only read session state. They never repair or overwrite files automatically.'
+        diagnostics = f'Data directory: {g.data_dir}\nSource phrases: {len(g.proverbs)} | History: {len(g.history)} | Favorites: {len(g.favorites)}\nProtected unreadable files: {", ".join(p.name for p in g.load_errors) or "none"}\n\nThese checks only read session state. They never repair or overwrite files automatically.'
         self.text(win, diagnostics)
         symptom = tk.StringVar(value='No generated result')
         choices = {'No generated result': 'generate', 'Missing library / wrong data': 'backup', 'Import or save failed': 'import', 'No search results': 'search', 'Slow or unresponsive operation': 'trouble'}
@@ -390,6 +537,7 @@ class UserAssistance:
         entry = ttk.Entry(win, textvariable=query)
         entry.pack(fill='x', padx=12, pady=10)
         actions = {button.cget('text'): button.invoke for button in self.buttons()}
+        actions.update(self.app.action_commands)
         actions.update({'Search Help': self.show_help, 'Getting Started': self.welcome,
                         'Feature Tour': self.tour, 'Guided Tasks': self.guided_tasks,
                         'Troubleshooting': self.troubleshoot, 'Advanced Concepts': lambda: self.show_help('advanced')})
@@ -424,7 +572,7 @@ class UserAssistance:
                 self.demo_process.terminate()
                 try:
                     self.demo_process.wait(timeout=2)
-                except __import__('subprocess').TimeoutExpired:
+                except subprocess.TimeoutExpired:
                     self.demo_process.kill()
                     self.demo_process.wait(timeout=2)
             self.demo_directory.cleanup()

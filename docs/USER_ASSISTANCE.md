@@ -48,7 +48,7 @@ The generic template's NAS, attachments, hashes and shared-library examples do n
 
 `UserAssistance` owns help windows, the menu, tour masks and demo lifecycle. It calls existing app actions; it has no separate persistence implementation. Add an article to `TOPICS`, include useful keywords and valid related IDs, and update context routing for new screens. Guided steps declare an explanation, action and validation condition; use an explicit manual confirmation only when the system cannot verify the result.
 
-The daily-test installer bundles `user_assistance.py`, `USER_GUIDE.md`, `CHANGELOG.md` and `LICENSE`. Help reads these relative to installed code, independent of the working data directory. If a document is missing, it offers local help rather than failing startup.
+The daily-test installer bundles the assistance and workflow modules plus `USER_GUIDE.md`, `CHANGELOG.md` and `LICENSE`. The wheel installs resources under its shared application-data resource directory. Help resolves source-checkout or wheel resources independently of the working data directory. If a document is missing, it offers local help rather than failing startup.
 
 ## Acceptance checks
 

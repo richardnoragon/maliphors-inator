@@ -12,6 +12,12 @@ Current identity: **maliphors-inator**, previously known as malaphors-rs and Mal
 
 This file is the current source for milestone status and development gates. Supporting implementation planning lives in [.specify/features/improvements-roadmap/plan.md](.specify/features/improvements-roadmap/plan.md); versioning policy and user-visible changes live in [VERSIONING.md](VERSIONING.md) and [CHANGELOG.md](CHANGELOG.md).
 
+## Seven-upgrade pass — 2026-11-11
+
+Implemented: four focused views; unified explicit data location and automatic legacy copy; startup backups/previewed restore; ratings/avoidance/recent suppression/More Like This; row-level import review; worker progress/cancellation; Linux package/version/optional Qt; GitHub test and package workflow. See [details and limits](docs/UPGRADES.md).
+
+Local verification: 252 tests passed in 8.72 seconds; 246 local document/image targets resolve. The built wheel was installed and smoke-tested outside the checkout without Qt. Human usability review remains pending. The installed legacy Daily Test snapshot has not been replaced by source changes. Hosted CI evidence and final validation are recorded in the release process after the run completes.
+
 ## Near-term priorities
 
 ### 1. Pre-alpha readiness

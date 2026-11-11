@@ -4,6 +4,24 @@ Current stage: **pre-alpha; technical alpha checks passed, human reviews pending
 
 maliphors-inator is pre-alpha, with daily developer testing. It combines the beginning of one source phrase with the ending of another and saves results locally.
 
+## Current desktop and data location
+
+Use the **Generate**, **Library**, **Favorites** and **History** tabs. Generate keeps the result, copy/save actions and feedback together. Library searches source phrases and offers add/edit, import review and export. Advanced contains manual/batch generation, tags, cleanup, gallery, statistics and profiles. Ctrl+F focuses Library search; Ctrl+Shift+P searches all actions.
+
+The normal desktop and CLI share `~/.local/share/maliphors-inator/data` (or the equivalent under `XDG_DATA_HOME`). `--data-dir PATH` overrides `MALIPHORS_INATOR_DATA_DIR`, which overrides the default. The desktop footer shows the path; `python main.py --data-path` prints it. Changing the working directory after startup does not redirect saved data.
+
+A default first launch copies existing data automatically, leaving the originals intact. It prefers the current Daily Test data directory, then its former-brand directory, then the launch directory, then the bundled library. Only one source is used; `migration.json` records it. Existing destinations are not merged or overwritten. Close legacy versions before migration. Explicit data-directory overrides use their own contents. See [migration details](docs/UPGRADES.md#shared-data-and-automatic-migration).
+
+Normal entry points prevent another desktop/CLI writer from opening the same directory. The old Daily Test remains an independent sandbox until you choose to update/install it; it does not follow the main store automatically.
+
+**Feedback:** Rate the displayed result to influence random generation. More Like This shares a source while preferring fresh output. Avoid This Combination blocks that ordered pair; undo it through Advanced → Manage Avoided Combinations. Recent results are suppressed when fresh combinations exist; a small exhausted library can repeat unblocked outputs.
+
+**Import review:** Library → Import Malaphors previews new, duplicate and invalid rows. Select a row, edit its JSON, Save Row Correction, or toggle Include / Exclude Selected. Included invalid rows must be corrected or excluded. Apply Reviewed Import skips duplicates and saves once; cancellation before commit leaves data unchanged. Files over 25 MB must be split.
+
+**Backups:** Backups / Restore lists automatic snapshots, creates portable ZIPs and previews restores. Normal startup retains 14 startup snapshots. Import/cleanup keep pre-change backups. A restore lists changed files, validates data/checksums and requires approval; omitted files remain unchanged. It saves a safety backup before replacement and reloads the desktop state afterwards. For manual filesystem copies, close all writers first. Restore rejects archives over 100 MB uncompressed. See [backup details](docs/UPGRADES.md#automatic-backup-and-restore-preview).
+
+**Long operations:** Import, cleanup, batch work and backup workflows show progress without freezing the main event loop. Cancel is checked before commit or between records. A save already committing finishes safely; cancelling a batch keeps completed saved results. Closing the app requests cancellation and waits before final save.
+
 ## Daily test version on this laptop
 
 Open **maliphors-inator Daily Test** from the application menu or double-click its desktop shortcut. The title shows the pre-alpha build ID. The installed snapshot runs independently of the source checkout.
@@ -25,13 +43,13 @@ This Linux installer uses the available `pip`, `xdg-user-dir`, and `desktop-file
 
 ## Install and start
 
-Follow [README installation](README.md#installation) to create a virtual environment and install dependencies. Run commands from the repository root, with that environment active:
+Follow [README installation](README.md#installation) to create a virtual environment and install dependencies. With that environment active, run:
 
 ```bash
 python main.py
 ```
 
-With no arguments, `main.py` opens the desktop app. With arguments it runs the CLI. Data is loaded from the current working directory, so launching from another directory does not automatically locate the bundled library.
+With no arguments, `main.py` opens the desktop app. With arguments it runs the CLI. Saved data uses the shared location described above; exports and import filenames can still be relative to the launch directory.
 
 ## Desktop workflows
 
@@ -48,7 +66,7 @@ Import/export dialogs report completion or failure. Cancelling the file picker m
 
 The app also includes gallery, statistics, theme, image export, and power-user dialogs. PNG export requires Pillow, installed by the runtime requirements. These features remain subject to daily testing.
 
-Generation writes history; adding favorites writes favorites. The desktop also saves history and favorites every five minutes and flushes them when its main loop exits. Large import/export operations can briefly pause the UI.
+Generation writes history; adding favorites writes favorites. The desktop also saves history and favorites every five minutes and flushes them when its main loop exits. The new import/backup/cleanup/batch workflows use background workers; some legacy advanced operations remain synchronous.
 
 ## Help and first steps
 
@@ -58,7 +76,7 @@ Use the Help menu or Help (F1) button for the feature tour, guided tasks, user g
 
 Guided Tasks walks through generation/favorites, import, or safe backup/recovery. Saved-data steps validate actual changes; manual steps require your confirmation. Cancelling a guide stops instruction but keeps actions already completed. Backup instructions require closing the app before copying/restoring; the guide does not replace files.
 
-Ctrl+Shift+P searches actions. Ctrl+F opens source search in Manual Combine. Ctrl+G generates, Ctrl+H opens history and Ctrl+S saves a favorite. Ctrl+C keeps normal text copy in editable fields; elsewhere it copies the displayed result. Help → Keyboard Shortcuts lists all bindings. Search Help searches local documentation, not your phrases.
+Ctrl+Shift+P searches actions. Ctrl+F focuses source search in the Library tab. Ctrl+G generates, Ctrl+H opens history and Ctrl+S saves a favorite. Ctrl+C keeps normal text copy in editable fields; elsewhere it copies the displayed result. Help → Keyboard Shortcuts lists all bindings. Search Help searches local documentation, not your phrases.
 
 Troubleshooting shows read-only directory/count/recovery diagnostics and links symptoms to next steps. Reports are never sent automatically. Ordinary bugs go to GitHub Issues; private security or conduct reports go to richardnoragon@mac.com. See the [assistance standard](docs/USER_ASSISTANCE.md) for the full framework.
 
@@ -83,7 +101,7 @@ To filter by category, first assign a tag to at least two source phrases, then u
 
 ### Current CLI limits
 
-- Use one action per invocation. When actions are combined, the implementation handles search, import, export, then generation in that priority order.
+- Use one action per invocation. Conflicting actions return an error.
 - Use category, language, and smart options separately. With category plus language, only language is applied; smart generation ignores language; category takes priority over smart.
 - `--count` defaults to 1; values below 1 become 1. Ordinary multi-result generation avoids duplicate suggestions and may return fewer results than requested when combinations are exhausted.
 - Import returns 0 when it saves new phrases and 1 for no additions or failure. Export returns 0 on success and 1 on failure. Invalid arguments return 2. Generation with insufficient matching phrases or a failed history write reports an error and returns 1.
@@ -123,7 +141,7 @@ Import in the desktop updates that session's phrase search. A CLI import does no
 
 ## Files and backups
 
-The app uses `malaphors.json`, `history.json`, and `favorites.json` in the current working directory. Ratings, templates, profiles, and UI preferences also have local JSON files as those features are used; see [the complete inventory](ARCHITECTURE.md#local-data).
+The app uses `malaphors.json`, `history.json`, and `favorites.json` in the selected shared data directory. Ratings, templates, profiles, and UI preferences also have local JSON files as those features are used; see [the complete inventory](ARCHITECTURE.md#local-data).
 
 To back up or restore:
 
@@ -131,7 +149,7 @@ To back up or restore:
 2. Copy the local JSON files to a separate backup directory.
 3. To restore, preserve a copy of the current files, replace them with the backed-up versions, and restart.
 
-Direct source-checkout launches have no automatic backup or synchronization service. The daily-test launcher separately keeps startup backups of its data directory; see [daily-test usage](#daily-test-version-on-this-laptop). Phrase exports alone do not back up history, favorites, or preferences.
+Normal source/installed entry points make startup backups and lock the selected data directory. They provide no cross-computer synchronization service. The daily-test launcher separately keeps startup backups of its data directory; see [daily-test usage](#daily-test-version-on-this-laptop). Phrase exports alone do not back up history, favorites, or preferences.
 
 If startup reports that saved data needs recovery, the named files were unreadable or structurally invalid. The app protects those paths from overwrite for that session. Keep a copy of the damaged files, close all app/CLI sessions, restore the affected JSON files using the steps above, and restart. Do not keep editing data in the recovery session.
 
@@ -141,14 +159,14 @@ JSON saves now preserve the existing destination when serialization, flush, or r
 
 ## Troubleshooting
 
-- **No matching phrases:** run from the repository root, inspect `malaphors.json`, and choose a language/tag with at least two entries.
+- **No matching phrases:** check the displayed data directory, inspect its `malaphors.json`, and choose a language/tag with at least two entries.
 - **Tkinter cannot be imported:** install Tk support for your Python distribution; the CLI imports shared code that also requires Tkinter.
 - **No display:** run the desktop in a graphical session. CLI commands can run without a display.
 - **Files seem unchanged:** check the working directory and destination, and reopen any other session that had already loaded the old data.
 
 ## Separate utilities
 
-`python settings_manager.py` opens the PyQt5 JSON editor; `python log_manager.py` opens the PyQt6 log window. Run from the repository root. They are separate processes, so the standalone log window does not receive logs from another running desktop process. The JSON editor validates JSON syntax, not the application's full phrase schema.
+After installing `qt-requirements.txt`, `python settings_manager.py` opens the PyQt5 JSON editor; `python log_manager.py` opens the PyQt6 log window. Run from the repository root. They are separate processes, so the standalone log window does not receive logs from another running desktop process. The JSON editor validates JSON syntax, not the application's full phrase schema.
 
 ## Rebranding compatibility
 

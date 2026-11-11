@@ -40,3 +40,10 @@ favorites.json
 # Nested local projects and backup artifacts
 malaphor-rs/
 t_files_backup/
+
+# Python release staging
+build/
+dist/
+
+# Session lock for first-launch legacy data copies
+.session.lock

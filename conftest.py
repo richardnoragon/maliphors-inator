@@ -99,8 +99,9 @@ def mock_generator():
     return mock
 
 @pytest.fixture(autouse=True)
-def setup_test_env(temp_test_dir, test_malaphors):
+def setup_test_env(temp_test_dir, test_malaphors, monkeypatch):
     """Set up test environment before each test."""
+    monkeypatch.setenv("MALIPHORS_INATOR_DATA_DIR", temp_test_dir)
     # Create test data files
     with open('test_malaphors.json', 'w') as f:
         json.dump(test_malaphors, f)

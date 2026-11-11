@@ -1,6 +1,7 @@
 from PyQt5 import QtWidgets, uic
 from PyQt5.QtWidgets import QMessageBox, QFileDialog, QProgressBar
 import json
+from app_resources import resource_path
 
 
 class SettingsManagerUI(QtWidgets.QMainWindow):
@@ -8,7 +9,7 @@ class SettingsManagerUI(QtWidgets.QMainWindow):
         super(SettingsManagerUI, self).__init__()
         
         # Load UI
-        uic.loadUi('settings_manager.ui', self)
+        uic.loadUi(str(resource_path('settings_manager.ui')), self)
         
         self.current_file = json_file_path
         self.settings_data = {}

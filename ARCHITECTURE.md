@@ -18,16 +18,16 @@ The settings and log windows have their own script entry points; the main Tkinte
 ## Runtime flow
 
 1. Each desktop session or CLI invocation creates its own generator.
-2. The generator loads data from the current working directory and builds a phrase search index.
-3. User actions call generator methods. Generation and search run synchronously; file helpers include async methods.
-4. Tk callbacks run async file helpers with `asyncio.run`. This completes the operation before returning to Tk, so large file operations can pause the interface.
+2. The generator loads the resolved data directory and builds a phrase search index.
+3. User actions call generator methods. Normal single generation/search remain synchronous; import, cleanup, backup and batch workflows use worker threads.
+4. `DesktopWorkflows` coordinates a worker, cancellation event and a queue polled by Tk. Workers do not touch widgets. Legacy advanced callbacks still include synchronous/`asyncio.run` paths.
 5. The desktop starts a background auto-save thread with a 300-second interval. Leaving the main loop calls `close`, stops auto-save, and flushes history and favorites.
 
 The CLI starts no auto-save thread. Its generation paths save history during the command. `generate_multiple` returns suggestions without saving them itself; the CLI explicitly persists those results.
 
 ## Local data
 
-All paths below are relative to the **current working directory**. Run from the repository root to use the bundled phrase library. Export destinations are chosen by the user.
+State paths below are resolved under `MalaphorGenerator.data_dir`. Desktop and CLI use the same explicit flag/environment/default resolution in `app_storage.py`. The default is the XDG user data directory; startup copies legacy data once and records its source. Import/export destinations remain user-selected paths. See [upgrade architecture and migration](docs/UPGRADES.md).
 
 | File | Shape and purpose |
 | --- | --- |
@@ -51,9 +51,9 @@ Runtime files are created as the corresponding features are used. History export
 
 - Python 3.10+ is the code baseline; the recorded validation environment is Linux/Python 3.14.4.
 - Tkinter is imported by the shared logic, so it must be installed for CLI use too. The CLI does not require a display; real desktop windows do.
-- [requirements.txt](requirements.txt) lists Pillow for PNG export, PyQt5 for settings, and PyQt6 for logging. SVG export uses the standard library.
-- State is loaded into memory. Separate app/CLI processes do not synchronize changes or lock files.
-- Generator JSON writes serialize first, write and fsync a temporary sibling file, then atomically replace the destination. A per-generator lock serializes history/favorites updates and auto-save. Invalid phrase/history/favorites/ratings files block overwriting that path for the session; the desktop warns about recovery. This is not a multi-file transaction or a power-loss durability guarantee. Text exports and separate Qt utilities retain their own write behavior. The separate daily-test launcher provides startup backups and a session lock for its own launches; it does not synchronize other app/CLI writers. Avoid simultaneous writers and close the app before restoring data.
+- [requirements.txt](requirements.txt) lists Pillow for PNG export. [qt-requirements.txt](qt-requirements.txt) optionally installs PyQt5 for settings and PyQt6 for logging. SVG export uses the standard library.
+- State is loaded into memory. Normal desktop/CLI entry points hold an exclusive Linux session lock for the chosen directory; embedded generators must arrange their own lock. There is no live cross-process synchronization.
+- Generator JSON writes serialize first, write and fsync a temporary sibling file, then atomically replace the destination. A per-generator lock serializes history/favorites updates and auto-save. Invalid phrase/history/favorites/ratings files block overwriting that path for the session; the desktop warns about recovery. This is not a multi-file transaction or a power-loss durability guarantee. Text exports and separate Qt utilities retain their own write behavior. The separate daily-test launcher provides startup backups and a session lock for its own launches; it remains a separate sandbox. Main-store backup/restore is coordinated with the generator persistence lock; manual filesystem restores still require closing all writers.
 
 ## Validation
 
@@ -76,3 +76,7 @@ The storage is JSON rather than relational tables. History records retain source
 Tk commands and bindings call application methods directly; rendering is refreshed explicitly after successful changes. Background auto-save uses the generator lock. There is no cross-process notification, network synchronization, plugin discovery or dependency injection framework.
 
 New generation/storage behavior should extend the generator and preserve format compatibility. New interfaces should call that service rather than duplicate persistence. New help topics and action mappings belong in `user_assistance.py`; the [assistance standard](docs/USER_ASSISTANCE.md) describes its boundaries. A future plugin system, shared hub or database would need an explicit decision covering lifecycle, ownership, migrations and concurrent writes before implementation.
+
+## Upgrade modules (2026-11-11)
+
+`app_storage.py` owns path resolution, migration, session locks and verified ZIP snapshots/restore. `library_workflows.py` plans cancellable imports and cleanup without writing. `desktop_workflows.py` owns Tk worker/progress/review dialogs. `app_resources.py` locates source or wheel resources; `app_version.py` is the single package-version source. `pyproject.toml` separates core, optional Qt and test dependencies. The Linux CI workflow runs GUI tests under Xvfb and packages/smoke-tests the wheel. The [upgrade guide](docs/UPGRADES.md) records operational limits and migration precedence.

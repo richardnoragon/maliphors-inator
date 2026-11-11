@@ -70,7 +70,8 @@ class LogManager(QtWidgets.QMainWindow):
         
         # Load the UI
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        ui_file = os.path.join(current_dir, "log_manager.ui")
+        from app_resources import resource_path
+        ui_file = str(resource_path("log_manager.ui"))
         uic.loadUi(ui_file, self)
         
         # Set up logging

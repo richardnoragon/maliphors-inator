@@ -10,6 +10,7 @@ import tkinter.ttk as ttk
 
 from maliphors_inator_logic import MalaphorGenerator
 from user_assistance import UserAssistance
+from desktop_workflows import DesktopWorkflows
 
 
 class MaliphorsInatorApp:
@@ -19,12 +20,15 @@ class MaliphorsInatorApp:
     HISTORY_CLEANUP_TRIGGER = 1200  # When to trigger cleanup
     UI_PREFERENCES_FILE = Path("ui_preferences.json")
 
-    def __init__(self, root=None):
+    def __init__(self, root=None, data_dir=None):
         """Initialize the GUI application."""
-        self.generator = MalaphorGenerator()
+        self.generator = MalaphorGenerator(data_dir=data_dir)
         self.root = root or tk.Tk()
         if not root:
             self.root.title("maliphors-inator")
+        self.UI_PREFERENCES_FILE = self.generator.data_path("ui_preferences.json")
+        self.root.protocol("WM_DELETE_WINDOW", self.exit_program)
+        self.workflows = DesktopWorkflows(self)
         self.tooltips = []  # Store tooltip references
         self.dialogs = {}  # Cache dialog references
         self.style = ttk.Style(self.root)
@@ -44,307 +48,194 @@ class MaliphorsInatorApp:
                 parent=self.root))
 
     def setup_gui(self):
-        """Set up the GUI components."""
-        # Configure window
-        self.root.geometry("900x860")
-        self.root.configure(padx=20, pady=20)
+        """Four focused views with advanced actions in menus."""
+        self.root.geometry('960x700')
+        self.root.minsize(760, 580)
+        self.root.configure(padx=14, pady=14)
+        self.current_result = None
+        self.action_commands = {
+            'Manual Combine': self.show_manual_combine_dialog,
+            'Batch Generation': lambda: self.workflows.batch(),
+            'Power User Tools': self.show_power_user_tools_dialog,
+            'Tag Management': self.show_tag_management_dialog,
+            'Generate by Category': self.show_generate_by_category_dialog,
+            'Statistics Dashboard': self.show_statistics_dashboard,
+            'Gallery': self.show_gallery_dialog,
+            'Validate / Clean Library': lambda: self.workflows.cleanup(),
+            'Manage Phrase Sources': self.show_source_management_dialog,
+            'Export Image': self.export_current_malaphor_image,
+            'Copy Stats': self.copy_generation_stats,
+            'Recent Searches': self.show_recent_searches,
+            'Undo': self.undo_last_action,
+            'Redo': self.redo_last_action,
+            'Toggle Theme': self.toggle_theme,
+            'Backups and Restore': lambda: self.workflows.backups(),
+            'Manage Avoided Combinations': self.show_avoided_combinations,
+        }
+        header = ttk.Frame(self.root)
+        header.pack(fill='x', pady=(0,10))
+        ttk.Label(header, text='maliphors-inator', font=('TkDefaultFont', 18, 'bold')).pack(side='left')
+        ttk.Button(header, text='Help (F1)', command=lambda: self.assistance.show_help()).pack(side='right')
+        status = ttk.Frame(self.root)
+        status.pack(side='bottom', fill='x', pady=(8,0))
+        self.notebook = ttk.Notebook(self.root)
+        self.notebook.pack(fill='both', expand=True)
+        self.views = {}
+        for name in ('Generate', 'Library', 'Favorites', 'History'):
+            view = ttk.Frame(self.notebook, padding=14)
+            self.notebook.add(view, text=name)
+            self.views[name] = view
+        generate = self.views['Generate']
+        self.language_var = tk.StringVar(value='all')
+        row = ttk.Frame(generate)
+        row.pack(fill='x', pady=8)
+        ttk.Label(row, text='Language').pack(side='left', padx=5)
+        self.language_combo = ttk.Combobox(row, textvariable=self.language_var,
+            values=['all'] + sorted({p.get('language', 'en') for p in self.generator.proverbs}), state='readonly', width=12)
+        self.language_combo.pack(side='left', padx=5)
+        def action(parent, label, command, tip=None):
+            button = tk.Button(parent, text=label, command=command, padx=12, pady=5)
+            button.pack(side='left', padx=4, pady=4)
+            if tip:
+                self._create_tooltip(button, tip)
+            return button
+        action(row, 'Generate', self.generate_malaphor, 'Combine two different matching source phrases')
+        self.sentence_label = tk.Label(generate, text="Click 'Generate' to create a malaphor",
+                                      font=('TkDefaultFont', 18), wraplength=820, height=5, justify='center')
+        self.sentence_label.pack(fill='both', expand=True, pady=12)
+        primary = ttk.Frame(generate)
+        primary.pack(anchor='center')
+        action(primary, 'Copy Malaphor', self.copy_to_clipboard, 'Copy the displayed result')
+        action(primary, 'Add to Favorites', self.add_to_favorites, 'Save the displayed result to Favorites')
+        feedback = ttk.Frame(generate)
+        feedback.pack(anchor='center', pady=12)
+        action(feedback, 'More Like This', self.generate_more_like, 'Reuse a source from this result, preferring fresh combinations')
+        action(feedback, 'Avoid This Combination', self.avoid_current, 'Exclude this ordered source pair from future random generation')
+        ttk.Label(feedback, text='Rate').pack(side='left', padx=5)
+        self.rating_var = tk.StringVar(value='5')
+        ttk.Combobox(feedback, textvariable=self.rating_var, values=['1','2','3','4','5'], state='readonly', width=3).pack(side='left')
+        action(feedback, 'Save Rating', self.rate_current)
+        self.empty_state = tk.Label(generate, wraplength=800, justify='left', pady=8)
+        self.empty_state.pack(fill='x')
+        library = self.views['Library']
+        tools = ttk.Frame(library)
+        tools.pack(fill='x')
+        action(tools, 'Add New Proverb', self.show_add_proverb_dialog, 'Create another source phrase')
+        action(tools, 'Manage Phrases', self.show_manage_phrases_dialog, 'View, edit or delete source phrases')
+        action(tools, 'Import Malaphors', lambda: self.workflows.import_file(), 'Preview, correct or exclude import rows before applying')
+        action(tools, 'Export Originals', self.export_originals_dialog, 'Export the phrase library as JSON or text')
+        search_row = ttk.Frame(library)
+        search_row.pack(fill='x', pady=12)
+        ttk.Label(search_row, text='Search source phrases').pack(side='left', padx=5)
+        self.library_query = tk.StringVar()
+        self.library_search = ttk.Entry(search_row, textvariable=self.library_query)
+        self.library_search.pack(side='left', fill='x', expand=True)
+        self.library_list = tk.Listbox(library, height=15)
+        self.library_list.pack(fill='both', expand=True)
+        self.library_query.trace_add('write', lambda *args: self.refresh_views())
+        self.library_hint = ttk.Label(library, wraplength=800)
+        self.library_hint.pack(fill='x', pady=8)
+        for name, key, open_command, export_command in [
+                ('Favorites', 'favorite', self.show_favorites_dialog, self.export_favorites_dialog),
+                ('History', 'history', self.show_history_dialog, self.export_generated_dialog)]:
+            view = self.views[name]
+            toolbar = ttk.Frame(view)
+            toolbar.pack(fill='x', pady=5)
+            action(toolbar, 'Manage Favorites' if key == 'favorite' else 'Manage History', open_command,
+                   'Search and manage saved results')
+            action(toolbar, 'Export Favorites' if key == 'favorite' else 'Export Generated', export_command)
+            query = tk.StringVar()
+            ttk.Label(view, text='Filter saved results').pack(anchor='w', pady=(12,3))
+            ttk.Entry(view, textvariable=query).pack(fill='x')
+            listing = tk.Listbox(view, height=16)
+            listing.pack(fill='both', expand=True, pady=8)
+            hint = ttk.Label(view, wraplength=800)
+            hint.pack(fill='x', pady=5)
+            setattr(self, key + '_query', query)
+            setattr(self, key + '_list', listing)
+            setattr(self, key + '_hint', hint)
+            query.trace_add('write', lambda *args: self.refresh_views())
+        # Preserve the internal history display API for existing dialog callbacks.
+        self.history_text = tk.Text(self.views['History'], height=1)
+        # Legacy quick actions are available through Advanced and the command palette.
+        self.copy_stats_button = tk.Button(generate, text='Copy Stats', command=self.copy_generation_stats)
+        self.recent_searches_button = tk.Button(generate, text='Recent Searches', command=self.show_recent_searches)
+        ttk.Button(status, text='Backups / Restore', command=lambda: self.workflows.backups()).pack(side='right')
+        self.data_location = ttk.Label(status, text=f'Data: {self.generator.data_dir}', width=1, wraplength=680)
+        self.data_location.pack(side='left', fill='x', expand=True)
+        self.refresh_views()
 
-        self.language_var = tk.StringVar(value="all")
+    def refresh_views(self):
+        if not hasattr(self, 'library_list'):
+            return
+        terms = self.library_query.get().casefold()
+        self.library_list.delete(0, 'end')
+        matches = [p for p in self.generator.proverbs if terms in p.get('original','').casefold()]
+        for phrase in matches[:1000]:
+            self.library_list.insert('end', phrase['original'])
+        self.library_hint.config(text=f'{len(matches)} matching source phrases' + (' (showing first 1000)' if len(matches)>1000 else '') if matches else 'No source phrases match. Clear the search, add a phrase or import a library.')
+        for key, values in [('favorite', self.generator.favorites), ('history', [p['malaphor'] for p in reversed(self.generator.history)])]:
+            query = getattr(self, key + '_query').get().casefold()
+            listing = getattr(self, key + '_list')
+            listing.delete(0, 'end')
+            filtered = [value for value in values if query in value.casefold()]
+            for value in filtered[:1000]:
+                listing.insert('end', value)
+            getattr(self, key + '_hint').config(text=f'{len(filtered)} saved results' if filtered else 'No matching results. Clear the filter or generate and save a new result.')
 
-        # Create main frame
-        main_frame = tk.Frame(self.root)
-        main_frame.pack(expand=True, fill='both')
+    def display_result(self, result):
+        self.current_result = result
+        self.sentence_label.config(text=f"{result['malaphor']}\n\nCreated from:\n1. {result['source1']}\n2. {result['source2']}")
+        self.notebook.select(self.views['Generate'])
+        self.update_history()
 
-        # Create three button frames
-        button_frame_top = tk.Frame(main_frame)
-        button_frame_top.pack(pady=5)
+    def generate_more_like(self):
+        if not self.current_result:
+            tkinter.messagebox.showinfo('Generate first', 'Generate a result before asking for more like it.', parent=self.root)
+            return
+        language = self.language_var.get()
+        try:
+            self.display_result(self.generator.generate_more_like(self.current_result, None if language == 'all' else language))
+        except (ValueError, OSError) as exc:
+            tkinter.messagebox.showerror('Generation failed', str(exc), parent=self.root)
 
-        button_frame_middle = tk.Frame(main_frame)
-        button_frame_middle.pack(pady=5)
+    def avoid_current(self):
+        if not self.current_result:
+            return
+        result = self.current_result
+        if self.generator.avoid_combination(result['source1'], result['source2']):
+            self.empty_state.config(text='Combination avoided. Use Advanced → Manage Avoided Combinations to undo this preference.')
+        else:
+            tkinter.messagebox.showerror('Could not save preference', 'The combination was not blocked.', parent=self.root)
 
-        button_frame_bottom = tk.Frame(main_frame)
-        button_frame_bottom.pack(pady=5)
+    def rate_current(self):
+        if not self.current_result:
+            return
+        result = self.current_result
+        if self.generator.rate_malaphor(result['source1'], result['source2'], int(self.rating_var.get())):
+            self.empty_state.config(text='Rating saved. Future random generation uses your feedback.')
+        else:
+            tkinter.messagebox.showerror('Rating failed', 'Could not save the rating.', parent=self.root)
 
-        # Add buttons to top row with increased width
-        manage_phrases_button = tk.Button(
-            button_frame_top,
-            text="Manage Phrases",
-            command=self.show_manage_phrases_dialog,
-            width=15
-        )
-        manage_phrases_button.pack(side=tk.LEFT, padx=5)
-        self._create_tooltip(manage_phrases_button, "View and edit the collection of proverbs")
-
-        manual_combine_button = tk.Button(
-            button_frame_top,
-            text="Manual Combine",
-            command=self.show_manual_combine_dialog,
-            width=15
-        )
-        manual_combine_button.pack(side=tk.LEFT, padx=5)
-        self._create_tooltip(manual_combine_button, "Manually select two phrases to combine into a malaphor")
-
-        add_proverb_button = tk.Button(
-            button_frame_top,
-            text="Add New Proverb",
-            command=self.show_add_proverb_dialog,
-            width=15
-        )
-        add_proverb_button.pack(side=tk.LEFT, padx=5)
-        self._create_tooltip(add_proverb_button, "Add a new proverb to the collection")
-
-        generate_button = tk.Button(
-            button_frame_top,
-            text="Generate",
-            command=self.generate_malaphor,
-            width=15
-        )
-        generate_button.pack(side=tk.LEFT, padx=5)
-        self._create_tooltip(generate_button, "Generate a new random malaphor")
-
-        copy_button = tk.Button(
-            button_frame_top,
-            text="Copy Malaphor",
-            command=self.copy_to_clipboard,
-            width=15
-        )
-        copy_button.pack(side=tk.LEFT, padx=5)
-        self._create_tooltip(copy_button, "Copy the current malaphor to clipboard")
-
-        language_label = tk.Label(button_frame_top, text="Language:")
-        language_label.pack(side=tk.LEFT, padx=(12, 4))
-        self._create_tooltip(language_label, "Limit generation to a specific language when available")
-        language_combo = ttk.Combobox(
-            button_frame_top,
-            textvariable=self.language_var,
-            values=["all", "en", "es", "fr", "de"],
-            state="readonly",
-            width=10,
-        )
-        language_combo.pack(side=tk.LEFT, padx=5)
-
-        # Add import/export buttons to middle row
-        import_button = tk.Button(
-            button_frame_middle,
-            text="Import Malaphors",
-            command=self.import_malaphors_dialog,
-            width=15
-        )
-        import_button.pack(side=tk.LEFT, padx=5)
-        self._create_tooltip(import_button, "Import malaphors from a JSON file")
-
-        export_originals_button = tk.Button(
-            button_frame_middle,
-            text="Export Originals",
-            command=self.export_originals_dialog,
-            width=15
-        )
-        export_originals_button.pack(side=tk.LEFT, padx=5)
-        self._create_tooltip(export_originals_button, "Export original proverbs to a file")
-
-        export_generated_button = tk.Button(
-            button_frame_middle,
-            text="Export Generated",
-            command=self.export_generated_dialog,
-            width=15
-        )
-        export_generated_button.pack(side=tk.LEFT, padx=5)
-        self._create_tooltip(export_generated_button, "Export generated malaphors to a file")
-
-        # Add buttons to bottom row
-        favorite_button = tk.Button(
-            button_frame_bottom,
-            text="Add to Favorites",
-            command=self.add_to_favorites,
-            width=15
-        )
-        favorite_button.pack(side=tk.LEFT, padx=5)
-        self._create_tooltip(favorite_button, "Add current malaphor to favorites")
-
-        save_favorites_button = tk.Button(
-            button_frame_bottom,
-            text="Save Favorites",
-            command=self.generator.save_favorites,
-            width=15
-        )
-        save_favorites_button.pack(side=tk.LEFT, padx=5)
-        self._create_tooltip(save_favorites_button, "Save favorites to file")
-
-        undo_button = tk.Button(
-            button_frame_bottom,
-            text="Undo",
-            command=self.undo_last_action,
-            width=12
-        )
-        undo_button.pack(side=tk.LEFT, padx=5)
-        self._create_tooltip(undo_button, "Undo the last destructive action")
-
-        redo_button = tk.Button(
-            button_frame_bottom,
-            text="Redo",
-            command=self.redo_last_action,
-            width=12
-        )
-        redo_button.pack(side=tk.LEFT, padx=5)
-        self._create_tooltip(redo_button, "Redo the last undone action")
-
-        export_image_button = tk.Button(
-            button_frame_bottom,
-            text="Export Image",
-            command=self.export_current_malaphor_image,
-            width=15
-        )
-        export_image_button.pack(side=tk.LEFT, padx=5)
-        self._create_tooltip(export_image_button, "Export the current malaphor as PNG or SVG")
-
-        self.copy_stats_button = tk.Button(
-            button_frame_bottom,
-            text="Copy Stats",
-            command=self.copy_generation_stats,
-            width=15,
-        )
-        self.copy_stats_button.pack(side=tk.LEFT, padx=5)
-        self._create_tooltip(self.copy_stats_button, "Copy the current malaphor with its source metadata in a formatted output")
-
-        self.recent_searches_button = tk.Button(
-            button_frame_bottom,
-            text="Recent Searches",
-            command=self.show_recent_searches,
-            width=15,
-        )
-        self.recent_searches_button.pack(side=tk.LEFT, padx=5)
-        self._create_tooltip(self.recent_searches_button, "Review and rerun recent search queries")
-
-        exit_button = tk.Button(
-            button_frame_bottom,
-            text="Exit",
-            command=self.exit_program,
-            width=15
-        )
-        exit_button.pack(side=tk.LEFT, padx=5)
-        self._create_tooltip(exit_button, "Exit the application")
-
-        view_history_button = tk.Button(
-            button_frame_bottom,
-            text="Manage History",
-            command=self.show_history_dialog,
-            width=15
-        )
-        view_history_button.pack(side=tk.LEFT, padx=5)
-        self._create_tooltip(view_history_button, "View and manage generated malaphor history")
-
-        view_favorites_button = tk.Button(
-            button_frame_bottom,
-            text="Manage Favorites",
-            command=self.show_favorites_dialog,
-            width=15
-        )
-        view_favorites_button.pack(side=tk.LEFT, padx=5)
-        self._create_tooltip(view_favorites_button, "View and manage favorite malaphors")
-
-        # Create new frame for advanced features (Group 2+)
-        button_frame_advanced = tk.Frame(main_frame)
-        button_frame_advanced.pack(pady=5)
-
-        tag_management_button = tk.Button(
-            button_frame_advanced,
-            text="Tag Management",
-            command=self.show_tag_management_dialog,
-            width=15
-        )
-        tag_management_button.pack(side=tk.LEFT, padx=5)
-        self._create_tooltip(tag_management_button, "View and manage phrase tags (FEAT-4)")
-
-        generate_by_category_button = tk.Button(
-            button_frame_advanced,
-            text="Generate by Category",
-            command=self.show_generate_by_category_dialog,
-            width=15
-        )
-        generate_by_category_button.pack(side=tk.LEFT, padx=5)
-        self._create_tooltip(generate_by_category_button, "Generate malaphors within a specific tag/category")
-
-        statistics_button = tk.Button(
-            button_frame_advanced,
-            text="Statistics Dashboard",
-            command=self.show_statistics_dashboard,
-            width=15
-        )
-        statistics_button.pack(side=tk.LEFT, padx=5)
-        self._create_tooltip(statistics_button, "View statistics and analytics (FEAT-11)")
-
-        gallery_button = tk.Button(
-            button_frame_advanced,
-            text="Gallery",
-            command=self.show_gallery_dialog,
-            width=15
-        )
-        gallery_button.pack(side=tk.LEFT, padx=5)
-        self._create_tooltip(gallery_button, "Browse generated malaphors in a visual gallery (FEAT-16)")
-
-        theme_button = tk.Button(
-            button_frame_advanced,
-            text="Toggle Theme",
-            command=self.toggle_theme,
-            width=15
-        )
-        theme_button.pack(side=tk.LEFT, padx=5)
-        self._create_tooltip(theme_button, "Switch between light and dark themes (UX-6)")
-
-        power_user_button = tk.Button(
-            button_frame_advanced,
-            text="Power User Tools",
-            command=self.show_power_user_tools_dialog,
-            width=18
-        )
-        power_user_button.pack(side=tk.LEFT, padx=5)
-        self._create_tooltip(power_user_button, "Advanced generation, sharing, and profile tools")
-
-        # Wrap controls so every action fits in the startup window.
-        for frame in (button_frame_top, button_frame_middle, button_frame_bottom, button_frame_advanced):
-            for widget in frame.winfo_children():
-                widget.pack_forget()
-            for index, widget in enumerate(frame.winfo_children()):
-                widget.grid(row=index // 4, column=index % 4, padx=5, pady=3)
-
-        # Visible entry point for desktops that export the native menu globally.
-        help_row = tk.Frame(main_frame)
-        help_row.pack(fill='x')
-        tk.Button(help_row, text='Help (F1)', command=lambda: self.assistance.show_help()).pack(side='right')
-
-        # Create labels
-        self.sentence_label = tk.Label(
-            main_frame,
-            text="Click 'Generate' to create a malaphor",
-            wraplength=400,
-            height=5
-        )
-        self.sentence_label.pack(pady=20)
-
-        # Create history display
-        history_frame = tk.LabelFrame(
-            main_frame,
-            text="History",
-            padx=10,
-            pady=10
-        )
-        history_frame.pack(fill='both', expand=True)
-
-        self.history_text = tk.Text(history_frame, height=10, width=50)
-        self.history_text.pack(side=tk.LEFT, fill='both', expand=True)
-        self._create_tooltip(self.history_text, "Recently generated malaphors")
-
-        # Add scrollbar to history
-        scrollbar = tk.Scrollbar(history_frame)
-        scrollbar.pack(side=tk.RIGHT, fill='y')
-
-        # Configure scrollbar
-        self.history_text.config(yscrollcommand=scrollbar.set)
-        scrollbar.config(command=self.history_text.yview)
-        # Keep first-use guidance visible without filling lists with fake records.
-        self.empty_state = tk.Label(main_frame, wraplength=820, justify='left')
-        self.empty_state.pack(fill='x', pady=4, before=history_frame)
-        self._apply_theme(self.root)
+    def show_avoided_combinations(self):
+        dialog = tk.Toplevel(self.root)
+        dialog.title('Avoided Combinations')
+        dialog.geometry('700x400')
+        listing = tk.Listbox(dialog)
+        listing.pack(fill='both', expand=True, padx=10, pady=10)
+        pairs = self.generator.generation_preferences.get('blocked', [])[:]
+        for a, b in pairs:
+            listing.insert('end', f'{a} + {b}')
+        def unblock():
+            if listing.curselection():
+                index = listing.curselection()[0]
+                if self.generator.avoid_combination(*pairs[index], avoid=False):
+                    pairs.pop(index)
+                    listing.delete(index)
+                else:
+                    tkinter.messagebox.showerror('Save failed', 'Could not unblock the pair.', parent=dialog)
+        ttk.Button(dialog, text='Unblock Selected', command=unblock).pack(pady=10)
+        return dialog
 
     def _create_tooltip(self, widget, text):
         """Create a tooltip for a given widget."""
@@ -520,6 +411,8 @@ class MaliphorsInatorApp:
 
     def _load_gallery_entry(self, entry, dialog=None):
         """Load a gallery entry into the main display."""
+        self.current_result = entry
+        self.notebook.select(self.views['Generate'])
         self.sentence_label.config(
             text=(f"{entry.get('malaphor', '')}\n\n"
                   f"Created from:\n"
@@ -689,6 +582,8 @@ class MaliphorsInatorApp:
                     category=entries["Category"].get().strip() or None,
                     template_name=template_var.get().strip() or None,
                 )
+                self.current_result = result
+                self.notebook.select(self.views['Generate'])
                 self.sentence_label.config(
                     text=(f"{result['malaphor']}\n\n"
                           f"Created from:\n"
@@ -710,6 +605,8 @@ class MaliphorsInatorApp:
         def generate_rhyme():
             try:
                 result = self.generator.generate_rhyming_random()
+                self.current_result = result
+                self.notebook.select(self.views['Generate'])
                 self.sentence_label.config(
                     text=(f"{result['malaphor']}\n\n"
                           f"Created from:\n"
@@ -780,6 +677,8 @@ class MaliphorsInatorApp:
                 return
             try:
                 result = self.generator.generate_from_template(name)
+                self.current_result = result
+                self.notebook.select(self.views['Generate'])
                 self.sentence_label.config(
                     text=(f"{result['malaphor']}\n\n"
                           f"Created from:\n"
@@ -981,14 +880,7 @@ class MaliphorsInatorApp:
         except (ValueError, OSError) as exc:
             tkinter.messagebox.showerror("Generation failed", str(exc), parent=self.root)
             return
-        sentence = result["malaphor"]
-        self.sentence_label.config(
-            text=(f"{sentence}\n\n"
-                  f"Created from:\n"
-                  f"1. {result['source1']}\n"
-                  f"2. {result['source2']}")
-        )
-        self.update_history()
+        self.display_result(result)
 
     def copy_to_clipboard(self):
         """Copy the current malaphor to clipboard."""
@@ -1023,10 +915,12 @@ class MaliphorsInatorApp:
         else:
             hint = 'Tip: Ctrl+Shift+P searches actions. Help → Feature Tour can be replayed at any time.'
         self.empty_state.config(text=hint)
+        self.refresh_views()
 
     def update_history(self):
         """Update the history display with malaphors and their sources."""
         self._refresh_assistance_hint()
+        self.refresh_views()
         # Check if cleanup is needed
         if self.history_text.index('end-1c').split('.')[0] > str(self.HISTORY_CLEANUP_TRIGGER):
             # Keep only the last MAX_HISTORY_LINES lines
@@ -1041,7 +935,11 @@ class MaliphorsInatorApp:
             self.history_text.insert(tk.END, f"2. {item['source2']}\n\n")
 
     def exit_program(self):
-        """Exit the program after confirming with the user."""
+        """Cancel active work before closing, so no worker can outlive the store."""
+        if self.workflows.active and self.workflows.active.is_alive():
+            self.workflows.cancel.set()
+            self.root.after(100, self.exit_program)
+            return
         if tkinter.messagebox.askokcancel(
             "Exit",
             "Do you want to exit the program?"
@@ -1383,6 +1281,8 @@ class MaliphorsInatorApp:
                 right_index = next(i for i, p in enumerate(proverbs) if p["original"] == right_text)
 
                 result = self.generator.generate_malaphor(left_index, right_index)
+                self.current_result = result
+                self.notebook.select(self.views['Generate'])
                 self.sentence_label.config(
                     text=(f"{result['malaphor']}\n\n"
                           f"Created from:\n"
@@ -1672,18 +1572,9 @@ class MaliphorsInatorApp:
         return 'break'
 
     def focus_search_box(self):
-        """Open source search and focus its first entry."""
-        self.show_manual_combine_dialog()
-        dialog = self.root.winfo_children()[-1]
-        def focus(widget):
-            for child in widget.winfo_children():
-                if isinstance(child, (tk.Entry, ttk.Entry)):
-                    child.focus_set()
-                    return True
-                if focus(child):
-                    return True
-            return False
-        focus(dialog)
+        """Focus the Library view's source search."""
+        self.notebook.select(self.views['Library'])
+        self.library_search.focus_set()
 
     def undo_last_action(self):
         """Undo the most recent destructive action."""
@@ -1818,70 +1709,8 @@ class MaliphorsInatorApp:
 
     # FEAT-2: Generate N Suggestions
     def show_suggestions_dialog(self):
-        """Show dialog with multiple suggestions for user to select from (FEAT-2)."""
-        dialog = tk.Toplevel(self.root)
-        dialog.bind('<F1>', self.assistance.context_help)
-        dialog.title("Generate Multiple Suggestions")
-        dialog.geometry("800x600")
-        dialog.transient(self.root)
-        dialog.grab_set()
-
-        # Controls frame
-        controls = tk.Frame(dialog)
-        controls.pack(fill='x', padx=10, pady=10)
-
-        tk.Label(controls, text="Number of suggestions:").pack(side=tk.LEFT, padx=5)
-        count_var = tk.IntVar(value=5)
-        count_spin = tk.Spinbox(controls, from_=1, to=20, textvariable=count_var, width=5)
-        count_spin.pack(side=tk.LEFT, padx=5)
-
-        suggestions_listbox = tk.Listbox(dialog, height=15)
-        suggestions_listbox.pack(fill='both', expand=True, padx=10, pady=5)
-
-        def generate_suggestions():
-            try:
-                count = count_var.get()
-                suggestions = self.generator.generate_multiple(count)
-                suggestions_listbox.delete(0, tk.END)
-
-                for i, sugg in enumerate(suggestions, 1):
-                    suggestions_listbox.insert(tk.END, f"{i}. {sugg['malaphor']}")
-                    suggestions_listbox.insert(tk.END, f"   From: {sugg['source1']} + {sugg['source2']}")
-                    suggestions_listbox.insert(tk.END, '')
-            except ValueError as e:
-                tkinter.messagebox.showerror("Error", str(e))
-
-        def select_suggestion():
-            try:
-                selections = suggestions_listbox.curselection()
-                if selections:
-                    line = suggestions_listbox.get(selections[0])
-                    # Extract malaphor from line
-                    if line.startswith(tuple(str(i) for i in range(1, 21))):
-                        malaphor = line.split('. ', 1)[1]
-                        # Find the full suggestion
-                        for sugg in self.generator.history[-10:]:
-                            if sugg['malaphor'] == malaphor:
-                                self.sentence_label.config(
-                                    text=(f"{sugg['malaphor']}\n\n"
-                                          f"Created from:\n"
-                                          f"1. {sugg['source1']}\n"
-                                          f"2. {sugg['source2']}")
-                                )
-                                self.update_history()
-                                dialog.destroy()
-                                return
-            except IndexError:
-                pass
-
-        button_frame = tk.Frame(dialog)
-        button_frame.pack(pady=10)
-        tk.Button(button_frame, text="Generate", command=generate_suggestions).pack(side=tk.LEFT, padx=5)
-        tk.Button(button_frame, text="Select & Use", command=select_suggestion).pack(side=tk.LEFT, padx=5)
-        tk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
-
-        # Generate initial suggestions
-        generate_suggestions()
+        """Generate saved suggestions through the cancellable worker."""
+        return self.workflows.batch()
 
     # FEAT-7: Phrase Similarity Detection (Warning before adding)
     def check_phrase_similarity_and_add(self, beginning: str, ending: str, original: str = None):
@@ -2012,6 +1841,8 @@ class MaliphorsInatorApp:
 
         def generate_smart():
             result = self.generator.generate_weighted_random(smart_mode=(mode_var.get() == "smart"))
+            self.current_result = result
+            self.notebook.select(self.views['Generate'])
             self.sentence_label.config(
                 text=(f"{result['malaphor']}\n\n"
                       f"Created from:\n"
@@ -2038,6 +1869,10 @@ class MaliphorsInatorApp:
 
     def close(self):
         """Clean up resources."""
+        if self.workflows.active and self.workflows.active.is_alive():
+            self.workflows.cancel.set()
+            self.workflows.active.join()
+        self.workflows.close()
         try:
             self.generator.stop_auto_save()
             self.generator._run_auto_save()
@@ -2167,107 +2002,8 @@ class MaliphorsInatorApp:
     # ============================================================================
 
     def show_database_validation_dialog(self):
-        """Show dialog for database validation and deduplication."""
-        dialog = tk.Toplevel(self.root)
-        dialog.bind('<F1>', self.assistance.context_help)
-        dialog.title("Validate & Clean Database - maliphors-inator")
-        dialog.geometry("800x600")
-
-        # Title
-        title_frame = tk.Frame(dialog)
-        title_frame.pack(fill=tk.X, padx=10, pady=10)
-        tk.Label(title_frame, text="Database Validation & Cleanup", font=("Arial", 12, "bold")).pack()
-
-        # Options
-        options_frame = tk.LabelFrame(dialog, text="Cleanup Options", padx=10, pady=10)
-        options_frame.pack(fill=tk.X, padx=10, pady=10)
-
-        remove_invalid_var = tk.BooleanVar(value=True)
-        remove_duplicates_var = tk.BooleanVar(value=True)
-
-        tk.Checkbutton(options_frame, text="Remove phrases with missing required fields",
-                      variable=remove_invalid_var).pack(anchor=tk.W)
-        tk.Checkbutton(options_frame, text="Remove exact duplicate phrases",
-                      variable=remove_duplicates_var).pack(anchor=tk.W)
-
-        # Results text area
-        results_frame = tk.LabelFrame(dialog, text="Validation Report", padx=10, pady=10)
-        results_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-
-        results_text = tk.Text(results_frame, height=15, width=80, state=tk.DISABLED)
-        scrollbar = ttk.Scrollbar(results_frame, orient=tk.VERTICAL, command=results_text.yview)
-        results_text.configure(yscrollcommand=scrollbar.set)
-
-        results_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-
-        async def run_validation():
-            results_text.config(state=tk.NORMAL)
-            results_text.delete(1.0, tk.END)
-
-            try:
-                # Run validation
-                validation = self.generator.validate_schema()
-                results_text.insert(tk.END, "=== VALIDATION REPORT ===\n\n")
-                results_text.insert(tk.END, f"Total phrases: {validation['total_phrases']}\n")
-                results_text.insert(tk.END, f"Valid phrases: {validation['valid']}\n")
-                results_text.insert(tk.END, f"Invalid phrases: {len(validation['invalid'])}\n\n")
-
-                if validation["invalid"]:
-                    results_text.insert(tk.END, "Invalid Phrases:\n")
-                    for item in validation["invalid"]:
-                        results_text.insert(tk.END, f"  Index {item['index']}: {', '.join(item['issues'])}\n")
-
-                # Check for duplicates
-                exact_dupes = self.generator.find_exact_duplicates()
-                similar = self.generator.find_similar_phrases(threshold=0.85)
-
-                results_text.insert(tk.END, f"\n=== DUPLICATE DETECTION ===\n")
-                results_text.insert(tk.END, f"Exact duplicates found: {len(exact_dupes)}\n")
-                results_text.insert(tk.END, f"Similar phrases (>85%): {len(similar)}\n")
-
-                if exact_dupes:
-                    results_text.insert(tk.END, "\nExact Duplicates:\n")
-                    for group in exact_dupes[:10]:  # Show first 10
-                        phrases = [self.generator.proverbs[i].get("original", "Unknown")[:40] for i in group]
-                        results_text.insert(tk.END, f"  {phrases}\n")
-
-                results_text.config(state=tk.DISABLED)
-
-            except Exception as e:
-                results_text.insert(tk.END, f"Error during validation: {str(e)}")
-                results_text.config(state=tk.DISABLED)
-
-        def run_validation_sync():
-            asyncio.run(run_validation())
-
-        # Buttons
-        button_frame = tk.Frame(dialog)
-        button_frame.pack(fill=tk.X, padx=10, pady=10)
-
-        async def run_cleanup():
-            try:
-                report = await self.generator.clean_database(
-                    remove_invalid=remove_invalid_var.get(),
-                    remove_duplicates=remove_duplicates_var.get()
-                )
-
-                message = f"Cleanup Complete!\n\n"
-                message += f"Total removed: {report['total_removed']}\n"
-                message += f"Validation issues: {len(report['validation']['invalid'])}\n"
-                message += f"Exact duplicates removed: {report['deduplication'].get('removed_count', 0)}\n"
-
-                tk.messagebox.showinfo("Cleanup Complete", message)
-                dialog.destroy()
-            except Exception as e:
-                tk.messagebox.showerror("Error", f"Cleanup failed: {str(e)}")
-
-        def run_cleanup_sync():
-            asyncio.run(run_cleanup())
-
-        tk.Button(button_frame, text="Validate Database", command=run_validation_sync, bg="#2196F3", fg="white").pack(side=tk.LEFT, padx=5)
-        tk.Button(button_frame, text="Run Cleanup", command=run_cleanup_sync, bg="#FF9800", fg="white").pack(side=tk.LEFT, padx=5)
-        tk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.RIGHT, padx=5)
+        """Preview and commit cleanup through the cancellable worker."""
+        return self.workflows.cleanup()
 
     # ============================================================================
     # FEAT-4: Category/Tag System UI

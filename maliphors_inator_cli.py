@@ -3,16 +3,28 @@
 import argparse
 import asyncio
 import json
+import os
 import sys
+import zipfile
 from pathlib import Path
 from typing import Iterable, List
 
 from maliphors_inator_logic import MalaphorGenerator
+from app_storage import StoreSession, resolve_data_dir, initialize_data, create_backup, preview_restore, restore_backup
+from app_version import __version__
 
 
 def build_parser() -> argparse.ArgumentParser:
     """Build the command-line argument parser."""
     parser = argparse.ArgumentParser(description="maliphors-inator CLI")
+    parser.add_argument('--data-dir', help='Shared data directory (also MALIPHORS_INATOR_DATA_DIR)')
+    parser.add_argument('--data-path', action='store_true', help='Print the resolved data directory')
+    parser.add_argument('--backup', metavar='ZIP', help='Create a verified backup ZIP')
+    parser.add_argument('--restore-preview', metavar='ZIP', help='Validate and list backup contents without restoring')
+    parser.add_argument('--restore', metavar='ZIP', help='Restore a backup; requires --confirm-restore')
+    parser.add_argument('--confirm-restore', action='store_true', help='Approve replacement after inspecting --restore-preview')
+    parser.add_argument('--preview-import', metavar='JSON', help='Print import row statuses without changing the library')
+    parser.add_argument('--version', action='version', version=__version__)
     parser.add_argument("--generate", action="store_true", help="Generate malaphors and print them")
     parser.add_argument("--count", type=int, default=1, help="Number of malaphors to generate")
     parser.add_argument("--category", help="Optional tag/category filter for generation")
@@ -66,14 +78,42 @@ def main(argv: List[str] | None = None) -> int:
     """Run a CLI command and return an exit code."""
     args = build_parser().parse_args(argv)
     try:
-        return _run_command(args)
-    except (ValueError, OSError) as exc:
+        actions = [args.generate, args.search, args.import_file, args.export_path,
+                   args.backup, args.restore, args.restore_preview, args.data_path, args.preview_import]
+        if sum(bool(value) for value in actions) > 1:
+            raise ValueError('Choose one action per invocation')
+        if args.restore and not args.confirm_restore:
+            raise ValueError('Inspect --restore-preview first, then use --restore ZIP --confirm-restore')
+        directory = resolve_data_dir(args.data_dir)
+        if args.data_path:
+            print(directory)
+            return 0
+        with StoreSession(directory):
+            initialize_data(directory, migrate=args.data_dir is None and not os.environ.get('MALIPHORS_INATOR_DATA_DIR'))
+            create_backup(directory, reason='startup')
+            return _run_command(args)
+    except (ValueError, OSError, zipfile.BadZipFile) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
 
 
 def _run_command(args) -> int:
-    generator = MalaphorGenerator()
+    generator = MalaphorGenerator(data_dir=args.data_dir) if args.data_dir else MalaphorGenerator()
+    directory = resolve_data_dir(args.data_dir)
+    if args.backup:
+        print(create_backup(directory, args.backup) or 'No data to back up')
+        return 0
+    if args.restore_preview:
+        files = preview_restore(args.restore_preview)
+        print(json.dumps({name: len(content) for name, content in files.items()}, indent=2))
+        return 0
+    if args.restore:
+        print(json.dumps(restore_backup(directory, args.restore), indent=2))
+        return 0
+    if args.preview_import:
+        from library_workflows import preview_import
+        print(json.dumps(preview_import(args.preview_import, generator.proverbs), indent=2, ensure_ascii=False))
+        return 0
 
     if args.search:
         _print_search(generator.search(args.search), args.output_format)

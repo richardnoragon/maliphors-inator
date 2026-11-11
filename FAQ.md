@@ -14,7 +14,7 @@ Generation needs at least two different matching source phrases. Choose language
 
 ## Why is my library empty or different from yesterday?
 
-The app reads JSON from the current working directory. Start in the same directory each time. The installed Daily Test uses its own data directory. See [storage and backups](USER_GUIDE.md#files-and-backups).
+Check the data-directory footer or `--data-path`. Normal desktop/CLI launches share the XDG data directory and support the same `--data-dir` override. The installed Daily Test uses its own data directory. See [storage and backups](USER_GUIDE.md#files-and-backups).
 
 ## Can I import my exported files?
 
@@ -22,11 +22,11 @@ Phrase-library JSON with a `proverbs` list can be reimported. History, favorites
 
 ## Are backups automatic?
 
-Direct source launches do not make automatic backups. Close all writers and copy the JSON files before broad changes. The Daily Test launcher keeps 14 startup ZIP backups. Follow the [restore instructions](USER_GUIDE.md#files-and-backups); undo is not a backup.
+Normal source/installed entry points keep 14 startup snapshots. Backups / Restore creates portable snapshots and previews replacements. Close all writers and copy the JSON files before broad changes. The Daily Test launcher keeps 14 startup ZIP backups. Follow the [restore instructions](USER_GUIDE.md#files-and-backups); undo is not a backup.
 
 ## Can two windows or the CLI share a data directory?
 
-Use one writer at a time. Processes do not synchronize changes; the Daily Test lock only covers its own launches. Close the desktop before changing its data through the CLI.
+Normal desktop/CLI entry points enforce one writer per shared directory. They do not synchronize with another computer or with the separate Daily Test sandbox. Close the desktop before changing its data through the CLI.
 
 ## Does the app need the internet?
 
@@ -38,7 +38,7 @@ The recorded alpha technical checks cover Ubuntu 26.04.1, Python 3.14.4 and Tk 8
 
 ## How do I search or find a command?
 
-Use Manual Combine to search source phrases or Manage History/Manage Favorites to filter saved entries. F1 opens help for the active screen. Ctrl+Shift+P opens the action palette. Help → Search Help searches local articles.
+Use Library search for source phrases and the History/Favorites views to filter saved entries. F1 opens help for the active screen. Ctrl+Shift+P opens the action palette. Help → Search Help searches local articles.
 
 ## Where do I report a problem?
 

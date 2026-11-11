@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "maliphors-inator"
+dynamic = ["version"]
+description = "A local desktop and CLI for mixing idioms and proverbs"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "LicenseRef-Proprietary"
+license-files = ["LICENSE"]
+authors = [{name = "Richard Noragon", email = "richardnoragon@mac.com"}]
+dependencies = ["Pillow>=11.1,<13"]
+
+[project.optional-dependencies]
+qt-tools = ["PyQt5>=5.15.11,<6", "PyQt6>=6.5,<7"]
+test = ["pytest>=8", "pytest-qt>=4.2", "pytest-cov>=4.1", "pytest-asyncio>=0.23", "pytest-xvfb>=2", "PyQt6>=6.5,<7"]
+
+[project.scripts]
+maliphors-inator = "main:desktop_main"
+maliphors-inator-cli = "maliphors_inator_cli:main"
+
+[tool.setuptools]
+py-modules = ["main", "maliphors_inator_cli", "maliphors_inator_logic", "maliphors_inator_ui", "app_storage", "library_workflows", "desktop_workflows", "user_assistance", "app_resources", "app_version", "settings_manager", "log_manager"]
+
+[tool.setuptools.dynamic]
+version = {attr = "app_version.__version__"}
+
+[tool.setuptools.data-files]
+"share/maliphors-inator" = ["malaphors.json", "USER_GUIDE.md", "CHANGELOG.md", "LICENSE", "settings_manager.ui", "log_manager.ui"]

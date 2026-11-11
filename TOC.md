@@ -6,6 +6,7 @@ Start with the [README](README.md) for installation and a quick start.
 | --- | --- |
 | [User guide](USER_GUIDE.md) | Desktop workflows, CLI commands, imports, backups and recovery. |
 | [FAQ](FAQ.md) | Common setup and usage questions. |
+| [Upgrade guide](docs/UPGRADES.md) | Shared storage, backups, feedback, import review, workers and Linux packaging. |
 | [Help framework](docs/USER_ASSISTANCE.md) | Onboarding, tours, guided tasks and contextual help. |
 | [Architecture](ARCHITECTURE.md) | Module boundaries, storage, communication and extensions. |
 | [Decisions](DECISIONS.md) | Design decisions, reasons and consequences. |

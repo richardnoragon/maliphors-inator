@@ -1,0 +1,49 @@
+name: Linux checks and package
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.12', '3.14']
+    timeout-minutes: 15
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            test-requirements.txt
+      - name: Install Linux GUI dependencies
+        run: sudo apt-get update && sudo apt-get install -y xvfb xauth python3-tk libegl1 libxkbcommon-x11-0 libxcb-cursor0
+      - name: Install runtime and test dependencies
+        run: python -m pip install -r requirements.txt -r test-requirements.txt build
+      - name: Run regressions with a virtual display
+        run: xvfb-run -a python -m pytest -q -o log_cli=false --junitxml=test-results.xml
+      - name: Check package build
+        run: python scripts/build_linux_release.py
+      - name: Smoke-test installed wheel outside checkout
+        run: |
+          python -m venv /tmp/maliphors-package
+          /tmp/maliphors-package/bin/python -m pip install dist/*.whl
+          cd /tmp
+          /tmp/maliphors-package/bin/maliphors-inator-cli --version
+          MALIPHORS_INATOR_DATA_DIR=/tmp/maliphors-smoke xvfb-run -a /tmp/maliphors-package/bin/maliphors-inator --smoke-test
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linux-python-${{ matrix.python }}
+          path: |
+            test-results.xml
+            dist/*.whl
+            dist/*.tar.gz

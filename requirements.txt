@@ -1,4 +1,2 @@
-# Runtime dependencies; test tools are in test-requirements.txt.
+# Core desktop/CLI dependencies. Tkinter is supplied by the OS.
 Pillow>=11.1,<13
-PyQt5>=5.15.11,<6
-PyQt6>=6.5,<7

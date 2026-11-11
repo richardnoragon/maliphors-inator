@@ -8,6 +8,7 @@ import sys
 import zipfile
 
 import pytest
+from app_resources import SNAPSHOT_FILES
 
 pytestmark = [pytest.mark.gui, pytest.mark.skipif(sys.platform != 'linux', reason='Linux desktop launcher')]
 REPO = Path(__file__).resolve().parent
@@ -17,7 +18,7 @@ REPO = Path(__file__).resolve().parent
 def bundle(tmp_path):
     destination = tmp_path / 'bundle'
     destination.mkdir()
-    for name in ('maliphors_inator_logic.py', 'maliphors_inator_ui.py', 'user_assistance.py', 'USER_GUIDE.md', 'CHANGELOG.md', 'LICENSE', 'malaphors.json'):
+    for name in SNAPSHOT_FILES:
         shutil.copyfile(REPO / name, destination / name)
     shutil.copyfile(REPO / 'scripts/daily_launcher.py', destination / 'daily_launcher.py')
     (destination / 'build.json').write_text(json.dumps({'build': 'test-snapshot'}))

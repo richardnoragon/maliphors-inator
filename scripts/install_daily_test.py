@@ -38,7 +38,9 @@ def main():
     if not pip:
         raise SystemExit('Install pip for your Python distribution, then rerun this installer.')
     subprocess.run([pip, '--python', str(python), 'install', '-r', str(repo / 'requirements.txt')], check=True)
-    files = ['main.py', 'maliphors_inator_cli.py', 'maliphors_inator_logic.py', 'maliphors_inator_ui.py', 'user_assistance.py', 'USER_GUIDE.md', 'CHANGELOG.md', 'LICENSE', 'malaphors.json', 'requirements.txt']
+    sys.path.insert(0, str(repo))
+    from app_resources import SNAPSHOT_FILES
+    files = SNAPSHOT_FILES
     digest = hashlib.sha256()
     for file in files + ['scripts/daily_launcher.py']:
         digest.update(file.encode())

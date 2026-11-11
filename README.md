@@ -22,9 +22,11 @@ Captured from the desktop application using disposable sample data on 2026-11-11
 - Manually combine selected source phrases
 - Filter generation by category or language metadata when available
 - Search the phrase library and browse recent outputs
-- Save and review history and favorites
+- Save and review history and favorites in dedicated views
+- Rate results, request More Like This and avoid unwanted combinations
+- Preview and correct imports, run cancellable batch/cleanup work, and preview backup restores
 - Import source phrase JSON; export phrases, generated history, and favorites
-- Open separate Qt utilities for editing JSON and viewing logs
+- Optionally install separate Qt utilities for editing JSON and viewing logs
 - Browse generated malaphors in a gallery-style UI
 - Use the CLI for generation, source phrase search, and phrase import/export
 - Learn with first-launch guidance, a temporary demo, a control tour, guided tasks and searchable offline help (F1)
@@ -46,7 +48,7 @@ source .venv/bin/activate
 python -m pip install -r requirements.txt
 ```
 
-Windows setup is unvalidated for this alpha checkpoint. To try it, create the environment with `python -m venv .venv`. Activate it with `.venv\Scripts\Activate.ps1` in PowerShell or `.venv\Scripts\activate.bat` in Command Prompt, then run the pip command above. Install your distribution’s Python venv package if environment creation reports that `ensurepip` is missing.
+This upgrade targets Linux. Windows and macOS packaging are not validated. Install your distribution’s Python venv package if environment creation reports that `ensurepip` is missing. Core requirements no longer include Qt; separate utilities use `python -m pip install -r qt-requirements.txt`.
 
 If `ensurepip` is unavailable and a system `pip` is already installed, this fallback was validated on the alpha environment:
 
@@ -57,6 +59,12 @@ pip --python .venv/bin/python install pip
 ```
 
 The full [alpha technical validation record](RELEASE_PROCESS.md#alpha-technical-validation-on-2026-10-01) includes the supported environment, recovery tests, and remaining human reviews.
+
+## Installable Linux build
+
+The current package version is **0.1.0.dev1**, a pre-alpha development build. With an environment active, `python -m pip install .` installs `maliphors-inator` (desktop) and `maliphors-inator-cli`. Add `[qt-tools]` for the optional Qt utilities. Tkinter comes from the operating system.
+
+Build a wheel and Linux installer archive with `python -m pip install build` then `python scripts/build_linux_release.py`. Extract the generated archive and run `sh install_linux.sh` for an application-menu launcher. See [packaging and fallback instructions](docs/UPGRADES.md#linux-build-and-optional-utilities). This build does not declare alpha readiness or publish a GitHub release.
 
 ## Daily test launcher on this laptop
 
@@ -84,7 +92,7 @@ python main.py --generate --count 5 --smart
 python main.py --search bird
 ```
 
-Run commands from the repository root: the phrase library, history, and favorites use files in the current working directory. `python maliphors_inator_cli.py` accepts the same CLI options.
+Desktop and CLI share `~/.local/share/maliphors-inator/data` by default, respecting `XDG_DATA_HOME`. First launch automatically copies existing data without moving source files. Use `--data-dir PATH` or `MALIPHORS_INATOR_DATA_DIR` to select another store. The desktop footer and `python main.py --data-path` show the resolved path. `python maliphors_inator_cli.py` accepts the same CLI options. See [migration and backup details](docs/UPGRADES.md#shared-data-and-automatic-migration).
 
 ```bash
 python main.py --help
@@ -113,6 +121,8 @@ The project is organized around a small set of Python modules:
 - [log_manager.py](log_manager.py): logging and monitoring interface
 
 ## Roadmap
+
+The [upgrade guide](docs/UPGRADES.md) describes the four-view UI, shared storage/migration, backups, feedback, import review, workers, Linux packaging and CI.
 
 [ROADMAP.md](ROADMAP.md) records pre-alpha milestones, completed automated gates, and pending daily developer checks. Supporting implementation plans live in [.specify/features/improvements-roadmap](.specify/features/improvements-roadmap).
 

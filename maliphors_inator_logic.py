@@ -17,6 +17,8 @@ import logging
 from typing import List, Dict, Optional, Tuple, Set, Any
 from collections import defaultdict, deque
 from copy import deepcopy
+from app_storage import resolve_data_dir, initialize_data, create_backup
+from library_workflows import import_additions, checkpoint
 
 
 def atomic_write_json(filepath, data):
@@ -167,8 +169,10 @@ class MalaphorGenerator:
             value.attach(self)
         super().__setattr__(name, value)
 
-    def __init__(self):
-        """Initialize the MalaphorGenerator with phrases from JSON file."""
+    def __init__(self, data_dir=None):
+        """Load state from an explicit directory, shared by CLI and desktop."""
+        self.data_dir = resolve_data_dir(data_dir)
+        initialize_data(self.data_dir, migrate=data_dir is None and not os.environ.get('MALIPHORS_INATOR_DATA_DIR'))
         self._persistence_lock = threading.RLock()
         self.load_errors = {}
         self.proverbs = []
@@ -185,6 +189,10 @@ class MalaphorGenerator:
         self.history = self._load_history_from_file()
         self._load_ratings()
         self._build_search_index()
+        self.generation_preferences = self._load_generation_preferences()
+
+    def data_path(self, name):
+        return self.data_dir / name
 
     def _build_search_index(self) -> PhraseIndex:
         """Rebuild the phrase lookup index from the current proverb set."""
@@ -243,7 +251,7 @@ class MalaphorGenerator:
 
     def _save_favorites_sync(self) -> bool:
         with self._persistence_lock:
-            return self._write_json("favorites.json", {"favorites": self.favorites})
+            return self._write_json(self.data_path("favorites.json"), {"favorites": self.favorites})
 
     def _load_data(self) -> None:
         """Load malaphors, favorites, and history from JSON files."""
@@ -256,7 +264,7 @@ class MalaphorGenerator:
 
     def _load_history_from_file(self) -> List[Dict[str, str]]:
         """Load valid records, protecting unreadable/partly invalid files from overwrite."""
-        path = Path("history.json")
+        path = self.data_path("history.json")
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
             entries = data.get("history") if isinstance(data, dict) else data
@@ -285,19 +293,22 @@ class MalaphorGenerator:
         with self._persistence_lock:
             updated = list(self.history)
             if entry is not None:
+                blocked = getattr(self, 'generation_preferences', {}).get('blocked', [])
+                if [entry.get('source1'), entry.get('source2')] in blocked:
+                    raise ValueError('This combination is avoided. Unblock it in Advanced to use it again.')
                 record = dict(entry)
                 record["timestamp"] = entry.get("timestamp") or datetime.now(timezone.utc).isoformat()
                 if not all(record.get(key) for key in ("malaphor", "source1", "source2")):
                     return False
                 updated.append(record)
-            if not self._write_json("history.json", updated):
+            if not self._write_json(self.data_path("history.json"), updated):
                 return False
             self.history = updated
             return True
 
     def _load_malaphors(self) -> None:
         try:
-            data = json.loads(Path("malaphors.json").read_text(encoding="utf-8"))
+            data = json.loads(self.data_path("malaphors.json").read_text(encoding="utf-8"))
             phrases = data.get("proverbs") if isinstance(data, dict) else None
             if not isinstance(phrases, list) or any(
                 not isinstance(item, dict)
@@ -313,11 +324,11 @@ class MalaphorGenerator:
         except FileNotFoundError:
             self.logger.warning("malaphors.json not found; starting with an empty collection.")
         except (OSError, ValueError, TypeError) as exc:
-            self._protect_unreadable_file("malaphors.json", exc)
+            self._protect_unreadable_file(self.data_path("malaphors.json"), exc)
 
     def _load_favorites(self) -> None:
         try:
-            data = json.loads(Path("favorites.json").read_text(encoding="utf-8"))
+            data = json.loads(self.data_path("favorites.json").read_text(encoding="utf-8"))
             favorites = data.get("favorites") if isinstance(data, dict) else None
             if not isinstance(favorites, list) or any(not isinstance(item, str) for item in favorites):
                 raise ValueError("Expected a favorites list of strings")
@@ -325,7 +336,7 @@ class MalaphorGenerator:
         except FileNotFoundError:
             pass
         except (OSError, ValueError, TypeError) as exc:
-            self._protect_unreadable_file("favorites.json", exc)
+            self._protect_unreadable_file(self.data_path("favorites.json"), exc)
 
     @lru_cache(maxsize=128)
     def _get_split_points(self, phrase: str) -> Tuple[str, str]:
@@ -381,19 +392,22 @@ class MalaphorGenerator:
         if len(candidate_proverbs) < 2:
             raise ValueError("Not enough proverbs to generate a malaphor")
 
-        proverb1 = candidate_proverbs[source1_index] if source1_index is not None else random.choice(candidate_proverbs)
-        if source2_index is not None:
-            proverb2 = candidate_proverbs[source2_index]
-            if source1_index is None:
-                alternatives = [p for p in candidate_proverbs if p != proverb2]
+        if source1_index is None and source2_index is None:
+            proverb1, proverb2 = self._select_quality_pair(candidate_proverbs)
+        else:
+            proverb1 = candidate_proverbs[source1_index] if source1_index is not None else random.choice(candidate_proverbs)
+            if source2_index is not None:
+                proverb2 = candidate_proverbs[source2_index]
+                if source1_index is None:
+                    alternatives = [p for p in candidate_proverbs if p != proverb2]
+                    if not alternatives:
+                        raise ValueError("Not enough distinct proverbs to generate a malaphor")
+                    proverb1 = random.choice(alternatives)
+            else:
+                alternatives = [p for p in candidate_proverbs if p != proverb1]
                 if not alternatives:
                     raise ValueError("Not enough distinct proverbs to generate a malaphor")
-                proverb1 = random.choice(alternatives)
-        else:
-            alternatives = [p for p in candidate_proverbs if p != proverb1]
-            if not alternatives:
-                raise ValueError("Not enough distinct proverbs to generate a malaphor")
-            proverb2 = random.choice(alternatives)
+                proverb2 = random.choice(alternatives)
 
         new_malaphor = f"{proverb1['beginning']} {proverb2['ending']}"
 
@@ -485,7 +499,7 @@ class MalaphorGenerator:
             }
 
             updated = self.proverbs + [new_proverb]
-            if not await self._save_to_file("malaphors.json", {"proverbs": updated}):
+            if not await self._save_to_file(self.data_path("malaphors.json"), {"proverbs": updated}):
                 return False
             self.proverbs = updated
             self._build_search_index()
@@ -622,7 +636,7 @@ class MalaphorGenerator:
                 return False
 
             merged = self.proverbs + additions
-            save_result = self._save_to_file("malaphors.json", {"proverbs": merged})
+            save_result = self._save_to_file(self.data_path("malaphors.json"), {"proverbs": merged})
             save_ok = await save_result if hasattr(save_result, "__await__") else bool(save_result)
             if not save_ok:
                 raise OSError("Could not save malaphors.json. Check the destination and permissions.")
@@ -642,7 +656,7 @@ class MalaphorGenerator:
             return False
         updated = deepcopy(self.proverbs)
         updated[index].update(original=f"{beginning} {ending}", beginning=beginning, ending=ending)
-        if not await self._save_to_file("malaphors.json", {"proverbs": updated}):
+        if not await self._save_to_file(self.data_path("malaphors.json"), {"proverbs": updated}):
             return False
         self.proverbs = updated
         self._build_search_index()
@@ -654,7 +668,7 @@ class MalaphorGenerator:
             return False
         before = deepcopy(self.proverbs)
         updated = self.proverbs[:index] + self.proverbs[index + 1:]
-        if not await self._save_to_file("malaphors.json", {"proverbs": updated}):
+        if not await self._save_to_file(self.data_path("malaphors.json"), {"proverbs": updated}):
             return False
         self.proverbs = updated
         self._build_search_index()
@@ -676,7 +690,7 @@ class MalaphorGenerator:
         if key not in files:
             return False
         with self._persistence_lock:
-            if not self._write_json(files[key], value if key == "history" else {key: value}):
+            if not self._write_json(self.data_path(files[key]), value if key == "history" else {key: value}):
                 return False
             result = self.undo_stack.redo() if redo else self.undo_stack.undo()
             self._build_search_index()
@@ -699,7 +713,7 @@ class MalaphorGenerator:
             if not 0 <= index < len(items):
                 return False
             updated = items[:index] + items[index + 1:]
-            if not self._write_json(f"{key}.json", updated if key == "history" else {key: updated}):
+            if not self._write_json(self.data_path(f"{key}.json"), updated if key == "history" else {key: updated}):
                 return False
             setattr(self, key, updated)
             self.undo_stack.record_state(f"delete_{key}", {key: deepcopy(items)}, {key: deepcopy(updated)})
@@ -866,8 +880,9 @@ class MalaphorGenerator:
         max_attempts = count * 10  # Prevent infinite loops
 
         while len(suggestions) < count and attempts < max_attempts:
-            idx1 = random.randint(0, len(candidate_proverbs) - 1)
-            idx2 = random.randint(0, len(candidate_proverbs) - 1)
+            first, second = self._select_quality_pair(candidate_proverbs)
+            idx1 = candidate_proverbs.index(first)
+            idx2 = candidate_proverbs.index(second)
 
             # Avoid same phrase and duplicates
             if idx1 != idx2 and (idx1, idx2) not in exclude_pairs:
@@ -895,7 +910,7 @@ class MalaphorGenerator:
     # FEAT-3: Weighted Random Generation (Rating-based)
     def _load_ratings(self) -> None:
         try:
-            data = json.loads(Path("ratings.json").read_text(encoding="utf-8"))
+            data = json.loads(self.data_path("ratings.json").read_text(encoding="utf-8"))
             ratings = data.get("ratings") if isinstance(data, dict) else None
             if not isinstance(ratings, dict) or any(
                 not isinstance(values, list) or any(type(rating) is not int or not 1 <= rating <= 5 for rating in values)
@@ -906,22 +921,20 @@ class MalaphorGenerator:
         except FileNotFoundError:
             pass
         except (OSError, ValueError, TypeError) as exc:
-            self._protect_unreadable_file("ratings.json", exc)
+            self._protect_unreadable_file(self.data_path("ratings.json"), exc)
 
     def _save_ratings(self) -> bool:
-        return self._write_json("ratings.json", {"ratings": self.phrase_pair_ratings})
+        return self._write_json(self.data_path("ratings.json"), {"ratings": self.phrase_pair_ratings})
 
-    def rate_malaphor(self, source1: str, source2: str, rating: int) -> None:
-        """Rate a malaphor pair (1-5 stars). Used to train weighted generation."""
-        if not (1 <= rating <= 5):
-            return
-
-        key = f"{source1}|{source2}"
-        if key not in self.phrase_pair_ratings:
-            self.phrase_pair_ratings[key] = []
-
-        self.phrase_pair_ratings[key].append(rating)
-        self._save_ratings()
+    def rate_malaphor(self, source1: str, source2: str, rating: int) -> bool:
+        if type(rating) is not int or not 1 <= rating <= 5:
+            return False
+        updated = deepcopy(self.phrase_pair_ratings)
+        updated.setdefault(f'{source1}|{source2}', []).append(rating)
+        if not self._write_json(self.data_path('ratings.json'), {'ratings': updated}):
+            return False
+        self.phrase_pair_ratings = updated
+        return True
 
     def get_pair_rating(self, source1: str, source2: str) -> Optional[float]:
         """Get average rating for a phrase pair."""
@@ -935,30 +948,7 @@ class MalaphorGenerator:
             # Fall back to regular generation if no ratings
             return self.generate_malaphor()
 
-        # Calculate weights for each phrase pair based on ratings
-        weighted_pairs = []
-        for i, proverb1 in enumerate(self.proverbs):
-            for j, proverb2 in enumerate(self.proverbs):
-                if i != j:
-                    key = f"{proverb1['original']}|{proverb2['original']}"
-                    ratings = self.phrase_pair_ratings.get(key, [])
-                    avg_rating = sum(ratings) / len(ratings) if ratings else 2.5  # Default neutral
-                    # Weight increases exponentially with rating
-                    weight = (avg_rating / 5.0) ** 2
-                    weighted_pairs.append((i, j, weight))
-
-        if not weighted_pairs:
-            return self.generate_malaphor()
-
-        # Select based on weights
-        _, _, weights = zip(*weighted_pairs)
-        total_weight = sum(weights)
-        weights = [w / total_weight for w in weights]
-
-        idx = random.choices(range(len(weighted_pairs)), weights=weights, k=1)[0]
-        i, j, _ = weighted_pairs[idx]
-
-        return self.generate_malaphor(i, j)
+        return self.generate_malaphor()
 
     def export_malaphor_image(self, malaphor: str, source1: str, source2: str, filepath: str, image_format: str = "png") -> bool:
         """Export a malaphor to PNG or SVG format."""
@@ -1059,7 +1049,7 @@ class MalaphorGenerator:
                 duplicates += 1
 
         if imported > 0:
-            await self._save_to_file("malaphors.json", {"proverbs": self.proverbs})
+            await self._save_to_file(self.data_path("malaphors.json"), {"proverbs": self.proverbs})
 
         return imported, duplicates
 
@@ -1252,7 +1242,7 @@ class MalaphorGenerator:
 
         # Save updated database
         if report["removed_count"] > 0:
-            await self._save_to_file("malaphors.json", {"proverbs": self.proverbs})
+            await self._save_to_file(self.data_path("malaphors.json"), {"proverbs": self.proverbs})
 
         return report
 
@@ -1281,7 +1271,7 @@ class MalaphorGenerator:
 
         # Save if any changes made
         if report["total_removed"] > 0:
-            await self._save_to_file("malaphors.json", {"proverbs": self.proverbs})
+            await self._save_to_file(self.data_path("malaphors.json"), {"proverbs": self.proverbs})
 
         return report
 
@@ -1449,7 +1439,7 @@ class MalaphorGenerator:
                 migrated += 1
 
         if migrated > 0:
-            await self._save_to_file("malaphors.json", {"proverbs": self.proverbs})
+            await self._save_to_file(self.data_path("malaphors.json"), {"proverbs": self.proverbs})
 
         return migrated
 
@@ -1859,7 +1849,7 @@ class MalaphorGenerator:
         raise ValueError("Unable to satisfy the requested constraints")
 
     def _generation_templates_path(self) -> Path:
-        return Path("generation_templates.json")
+        return self.data_path("generation_templates.json")
 
     def _load_generation_templates(self) -> List[Dict[str, str]]:
         default_templates = [
@@ -2038,7 +2028,7 @@ class MalaphorGenerator:
         )
 
     def _settings_profiles_path(self) -> Path:
-        return Path("settings_profiles.json")
+        return self.data_path("settings_profiles.json")
 
     def _load_settings_profiles(self) -> Dict[str, Dict[str, Any]]:
         try:
@@ -2102,9 +2092,101 @@ class MalaphorGenerator:
 
         updated = list(self.proverbs)
         updated.insert(target_index, updated.pop(source_index))
-        if not self._write_json("malaphors.json", {"proverbs": updated}):
+        if not self._write_json(self.data_path("malaphors.json"), {"proverbs": updated}):
             return False
         self.proverbs = updated
         self._build_search_index()
         self.search.cache_clear()
         return True
+
+
+    def _load_generation_preferences(self):
+        path = self.data_path('generation_preferences.json')
+        try:
+            data = json.loads(path.read_text(encoding='utf-8'))
+            from app_storage import validate_state
+            validate_state(path.name, data)
+            return data
+        except FileNotFoundError:
+            return {'blocked': [], 'recent_window': 20}
+        except (OSError, ValueError, TypeError) as exc:
+            self._protect_unreadable_file(path, exc)
+            return {'blocked': [], 'recent_window': 20}
+
+    def avoid_combination(self, source1, source2, avoid=True):
+        updated = deepcopy(self.generation_preferences)
+        pair = [source1, source2]
+        blocked = updated.setdefault('blocked', [])
+        if avoid and pair not in blocked:
+            blocked.append(pair)
+        elif not avoid and pair in blocked:
+            blocked.remove(pair)
+        if not self._write_json(self.data_path('generation_preferences.json'), updated):
+            return False
+        self.generation_preferences = updated
+        return True
+
+    def _select_quality_pair(self, candidates, reference=None):
+        blocked = {tuple(pair) for pair in self.generation_preferences.get('blocked', [])}
+        recent = {item['malaphor'] for item in self.history[-20:]}
+        preferred = {reference.get('source1'), reference.get('source2')} if reference else set()
+        # Bound memory on large libraries. Scan exhaustively only for small libraries.
+        if len(candidates) <= 100:
+            pairs = [(a, b) for a in candidates for b in candidates if a != b]
+        else:
+            pairs = []
+            for _ in range(4000):
+                a, b = random.sample(candidates, 2)
+                if a != b:
+                    pairs.append((a, b))
+        pairs = [(a, b) for a, b in pairs if (a['original'], b['original']) not in blocked]
+        if not pairs:
+            raise ValueError('Not enough distinct available combinations. Unblock a pair or add more phrases.')
+        if reference:
+            matching = [(a, b) for a, b in pairs if preferred & {a['original'], b['original']}
+                        or set(a.get('tags', [])) & set(reference.get('tags', []))]
+            if matching:
+                pairs = matching
+        fresh = [(a, b) for a, b in pairs if f"{a['beginning']} {b['ending']}" not in recent]
+        pairs = fresh or pairs  # Small libraries can cycle after fresh combinations run out.
+        weights = []
+        for a, b in pairs:
+            rating = self.get_pair_rating(a['original'], b['original']) or 2.5
+            weights.append((rating / 5) ** 2)
+        return random.choices(pairs, weights=weights, k=1)[0]
+
+    def generate_more_like(self, reference, language=None):
+        candidates = [p for p in self.proverbs if not language or p.get('language', 'en').lower() == language.lower()]
+        if len(candidates) < 2:
+            raise ValueError('At least two matching phrases are required')
+        a, b = self._select_quality_pair(candidates, reference)
+        return self.generate_malaphor(self.proverbs.index(a), self.proverbs.index(b))
+
+    def commit_import_rows(self, rows, cancel=None, progress=None):
+        with self._persistence_lock:
+            additions = import_additions(rows, self.proverbs, cancel, progress)
+            if not additions:
+                return 0
+            checkpoint(cancel)
+            create_backup(self.data_dir, reason='before-import')
+            if not self._write_json(self.data_path('malaphors.json'), {'proverbs': self.proverbs + additions}):
+                raise OSError('Could not save imported phrases; data is unchanged')
+            self.proverbs = self.proverbs + additions
+            self._build_search_index()
+            self.search.cache_clear()
+            return len(additions)
+
+    def commit_cleanup(self, plan, original, cancel=None):
+        with self._persistence_lock:
+            if self.proverbs != original:
+                raise ValueError('Library changed since preview; run cleanup preview again')
+            checkpoint(cancel)
+            if not plan['removed']:
+                return 0
+            create_backup(self.data_dir, reason='before-cleanup')
+            if not self._write_json(self.data_path('malaphors.json'), {'proverbs': plan['phrases']}):
+                raise OSError('Could not save cleanup; data is unchanged')
+            self.proverbs = deepcopy(plan['phrases'])
+            self._build_search_index()
+            self.search.cache_clear()
+            return len(plan['removed'])

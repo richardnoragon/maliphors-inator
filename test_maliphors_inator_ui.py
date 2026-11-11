@@ -222,7 +222,7 @@ def test_history_persists_and_loads(monkeypatch, tmp_path):
     }
     (tmp_path / "malaphors.json").write_text(json.dumps(malaphors), encoding="utf-8")
 
-    generator = MalaphorGenerator()
+    generator = MalaphorGenerator(data_dir=tmp_path)
     result = generator.generate_malaphor()
 
     history_file = tmp_path / "history.json"
@@ -242,7 +242,7 @@ def test_history_persists_and_loads(monkeypatch, tmp_path):
     ]
     history_file.write_text(json.dumps(saved_history), encoding="utf-8")
 
-    reloaded = MalaphorGenerator()
+    reloaded = MalaphorGenerator(data_dir=tmp_path)
     assert reloaded.history == saved_history
 
 if __name__ == '__main__':

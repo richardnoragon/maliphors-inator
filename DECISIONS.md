@@ -176,3 +176,13 @@ Decision: implement the Inator assistance outline as a local `UserAssistance` mo
 Reason: first-time users need an achievable first task and existing users need discoverable help without leaving the app or sharing data with an external service. The same content model supports concepts, troubleshooting and related articles.
 
 Consequences: help must ship with each daily snapshot and change alongside controls/formats. Completion preferences share the existing JSON writer; demo sessions use a separate process/directory. Guided actions call existing app methods. File recovery remains user controlled. Remote AI assistance is outside the offline design and requires a separate explicit decision.
+
+## ADR-012 — Linux-first desktop and shared store (2026-11-11)
+
+Status: implemented; human usability review pending.
+
+Decision: group the desktop into Generate/Library/Favorites/History; use one explicit XDG data path across normal desktop/CLI entry points; automatically copy legacy data once without deleting originals, as requested by the maintainer. Add session locks, startup/pre-change ZIP snapshots, validated restore with safety backup/rollback, local feedback heuristics and reviewable import plans. Keep long operations outside Tk callbacks. Package a development wheel/Linux installer with optional Qt extras and test it in GitHub Actions.
+
+Reason: improve discoverability, protect saved data, make imports reviewable and make installation/testing reproducible.
+
+Consequences: version 0.1.0.dev1 identifies a pre-alpha development artifact; existing historical versions do not establish stage readiness. Source precedence, worker cancellation boundaries and Linux-only locks are documented in docs/UPGRADES.md. The Daily Test stays an independent sandbox. No cloud sync or remote AI service is added.

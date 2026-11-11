@@ -118,3 +118,11 @@ The same agent rehearsed a small CLI help-text change and validated both entry p
 `python -m pytest test_user_assistance.py` covers local search and related articles, onboarding preference preservation and save failures, guided generation/favorite validation with real files, no-result help, action execution, tour resize/cancel cleanup, F1 from a child entry, read-only diagnostics and demo-process isolation/cleanup. Real Tk windows require a display. Launcher tests also check that the new module ships in isolated bundles.
 
 Follow the [assistance acceptance checks](docs/USER_ASSISTANCE.md#acceptance-checks) for human review. In particular, verify readable sizing, keyboard traversal, first launch/relaunch, cancel/replay, an import cancellation and actual restored data. Automated checks do not establish usability or independent handoff.
+
+## Upgrade regression and Linux package checks
+
+`test_upgrades.py` covers fixed paths after working-directory changes, migration/source preservation, single-writer locks, startup retention, schema/checksum/path validation, restore rollback, import correction/exclusion/cancellation and failed saves, stale cleanup plans, saved feedback/recent suppression, real import-review widgets and worker event-loop responsiveness. Tests select disposable stores explicitly through the environment or constructor.
+
+Build with `python scripts/build_linux_release.py` (or `--no-isolation` with installed build backends where ensurepip is unavailable). Install its wheel into a fresh environment, change to a directory outside the checkout and run the installed CLI/desktop with temporary XDG data. Verify that core startup does not require either Qt binding and that bundled resources load. The GitHub workflow repeats regression/build/smoke checks under Xvfb on Linux/Python 3.12 and 3.14.
+
+Human acceptance must include actual first-run migration from a copy, Library import correction/exclusion, avoiding/unblocking a combination, cancellation during batch/import/cleanup, and a previewed restore followed by data verification. Do not substitute automated success for these usability checks.

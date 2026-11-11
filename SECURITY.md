@@ -16,17 +16,17 @@ A report should identify the affected revision, relevant files, environment, rep
 
 ## Local files and imports
 
-The app reads and writes data in the current working directory, including `malaphors.json`, `history.json`, `favorites.json`, ratings, templates, profiles, and UI preferences. See [the data inventory](ARCHITECTURE.md#local-data).
+The app reads and writes data in the selected shared data directory, including `malaphors.json`, `history.json`, `favorites.json`, ratings, templates, profiles, and UI preferences. See [the data inventory](ARCHITECTURE.md#local-data).
 
 - Files inherit ordinary filesystem permissions; the app does not encrypt them or provide access controls.
-- Import validates required phrase strings and optional language/source/tag types before merging. It does not impose a file-size limit or isolate untrusted input.
+- Import validates required phrase strings and optional language/source/tag types before merging. The desktop preview limits JSON input to 25 MB; strict legacy CLI imports retain their earlier contract. Input is not sandboxed. Restore accepts only known state filenames, validates schemas/checksums, rejects duplicates/traversal paths and limits uncompressed size to 100 MB.
 - Export and the standalone JSON editor can overwrite user-selected files.
-- Generator JSON writes use a flushed temporary file and atomic replacement. This does not provide multi-file transactions, power-loss guarantees, or coordination between app/CLI processes; use one writer per data directory.
+- Generator JSON writes use a flushed temporary file and atomic replacement. This does not provide multi-file transactions, power-loss guarantees, or cross-computer synchronization. Normal desktop/CLI entry points enforce one writer per data directory with a Linux session lock; direct embedded generators must arrange their own lock.
 - Unreadable or structurally invalid phrase/history/favorites/ratings files are protected from overwrite for the session. The desktop reports recovery needs. Restore a known-good backup and restart. Text exports and separate editing utilities do not share all of these protections.
 
 ## Backup and recovery
 
-Close all app and CLI sessions before copying or restoring state. Back up the local JSON files to a separate directory before imports, cleanup, or broad edits. To recover, keep a copy of the damaged files, replace the affected state with a known-good backup, and restart the app. Direct source launches do not create automatic backups. The daily-test launcher keeps 14 startup ZIP backups; recovery from those archives is covered by `test_daily_launcher.py`.
+Close all app and CLI sessions before copying or restoring state. Back up the local JSON files to a separate directory before imports, cleanup, or broad edits. To recover, keep a copy of the damaged files, replace the affected state with a known-good backup, and restart the app. Normal desktop/CLI entry points create startup backups; the newest 14 startup snapshots are retained. The desktop also offers previewed restore with a safety backup and rollback on replacement failure. Automatic backups are not a multi-file power-loss transaction or an external backup. The daily-test launcher keeps 14 startup ZIP backups; recovery from those archives is covered by `test_daily_launcher.py`.
 
 Keep the working directory and backups accessible only to intended users. Phrase text, favorites, history, logs, and exports may contain whatever users enter; avoid including sensitive content in shared test artifacts.
 

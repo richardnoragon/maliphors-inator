@@ -39,7 +39,7 @@ These steps apply when developers decide to prepare an external release:
 - [ ] Validate dependency installation and the full suite on the selected platforms.
 - [ ] Complete an interactive walkthrough and record known limitations.
 - [ ] Choose a semantic version using [VERSIONING.md](VERSIONING.md).
-- [ ] Reconcile package metadata with the release history: `__init__.py` currently says `1.0.0`, while the changelog contains historical `1.0.0` and `2.0.0` documentation/framework entries. Those entries do not establish application alpha status.
+- [ ] Reconcile package metadata with the release history: `app_version.py` now identifies the pre-alpha package as `0.1.0.dev1`, while the changelog contains historical `1.0.0` and `2.0.0` documentation/framework entries. Those entries do not establish application alpha status.
 - [ ] Review and commit the final scope, changelog, and installation guidance.
 - [ ] Record developer approval and select the exact release commit.
 - [ ] Create an immutable version tag and publish notes only for that reviewed commit.
@@ -66,6 +66,16 @@ The updated working tree based on `ea55ca8` passed **228 tests in 7.48 seconds**
 
 Checked 235 local documentation/image targets and `git diff --check`; both passed. Captured and inspected main/help screenshots using disposable data. Test log: `/tmp/maliphors-template-tests.log` (temporary). Personal and installed daily-test datasets were not replaced. The installer now bundles help, but the user's installed snapshot has not been updated by this pass. Human usability review and independent handoff remain open; no release or stage promotion is implied.
 
+## Seven-upgrade validation on 2026-11-11
+
+Working tree based on `3f29b7e`, package `0.1.0.dev1`: **252 tests passed in 8.72 seconds** on Linux/Python 3.14.4 with the available Tk display. Command: `.venv/bin/python -m pytest -q -o log_cli=false`. The expanded suite includes migration copy/rollback, stable paths, deletion/undo in explicit stores, locks, startup retention, restore checksum/path/schema checks and byte-preserving rollback, import correction/exclusion/cancellation/save failures, cleanup stale plans, saved feedback, recent suppression, worker responsiveness, review-table interaction and CLI backup/restore round trips.
+
+Checked 246 local document/image targets, `git diff --check`, Python compilation and Linux installer shell syntax. Captured and inspected the simplified window/help using disposable data; fixed footer/hint clipping and added a layout assertion.
+
+Built the wheel and versioned Linux archive with `.venv/bin/python scripts/build_linux_release.py --no-isolation` after installing build/setuptools/wheel into the project environment (this host lacks ensurepip). Installed the wheel into `/tmp/maliphors-package-verify`, changed outside the checkout, generated CLI output from bundled resources and smoke-tested the real desktop. Neither Qt binding was installed in that verification environment; core imports succeeded.
+
+Test/build logs are `/tmp/maliphors-upgrades-tests.log` and `/tmp/maliphors-build.log` (temporary). No personal/installed Daily Test dataset was migrated or replaced during testing. Hosted CI verification is recorded separately after the new workflow runs. Human usability review and independent handoff remain pending; no public release/tag or stage promotion is implied.
+
 ## Validation evidence for the next milestone
 
 Validated on 2026-09-30 against the working tree based on commit `68feba7`.
@@ -80,7 +90,7 @@ Validated on 2026-09-30 against the working tree based on commit `68feba7`.
 
 The milestone note and development gates are published in [ROADMAP.md](ROADMAP.md#release-milestones), with user-visible changes in [CHANGELOG.md](CHANGELOG.md#release-note). These are automated checks with real widgets and files; interactive visual review on Windows/macOS and a user trial period have not been completed. Large file operations invoked through desktop callbacks can briefly block the UI while they finish.
 
-For a later alpha or external release, choose the milestone version, reconcile `__init__.py` (currently `1.0.0`) with the release history, review and commit the working tree, and complete the applicable publication checklist above. An RC trial is optional; beta user trials are a separate stage gate. No release tag or GitHub release has been created.
+For a later alpha or external release, choose the milestone version, reconcile `app_version.py` (currently `0.1.0.dev1`) with the release history, review and commit the working tree, and complete the applicable publication checklist above. An RC trial is optional; beta user trials are a separate stage gate. No release tag or GitHub release has been created.
 
 ## Daily testing pass on 2026-09-30
 

@@ -59,7 +59,7 @@ def main():
             os.chdir(data)
             sys.path.insert(0, str(bundle))
             from maliphors_inator_ui import MaliphorsInatorApp
-            app = MaliphorsInatorApp()
+            app = MaliphorsInatorApp(data_dir=data)
             app.root.title(f'maliphors-inator Daily Test — pre-alpha — {build}')
             def callback_error(exc_type, exc, traceback):
                 logger.error('Desktop action failed', exc_info=(exc_type, exc, traceback))
