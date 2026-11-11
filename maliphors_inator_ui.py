@@ -9,6 +9,7 @@ import tkinter.filedialog
 import tkinter.ttk as ttk
 
 from maliphors_inator_logic import MalaphorGenerator
+from user_assistance import UserAssistance
 
 
 class MaliphorsInatorApp:
@@ -27,9 +28,11 @@ class MaliphorsInatorApp:
         self.tooltips = []  # Store tooltip references
         self.dialogs = {}  # Cache dialog references
         self.style = ttk.Style(self.root)
-        self.theme_mode = self._load_ui_preferences().get("theme", "light")
+        self.preferences = self._load_ui_preferences()
+        self.theme_mode = self.preferences.get("theme", "light")
         self.generator.start_auto_save(interval_seconds=300.0)
         self.setup_gui()
+        self.assistance = UserAssistance(self)
         self.update_history()
         self._apply_theme(self.root)
         if self.generator.load_errors:
@@ -43,7 +46,7 @@ class MaliphorsInatorApp:
     def setup_gui(self):
         """Set up the GUI components."""
         # Configure window
-        self.root.geometry("900x740")
+        self.root.geometry("900x860")
         self.root.configure(padx=20, pady=20)
 
         self.language_var = tk.StringVar(value="all")
@@ -304,6 +307,11 @@ class MaliphorsInatorApp:
             for index, widget in enumerate(frame.winfo_children()):
                 widget.grid(row=index // 4, column=index % 4, padx=5, pady=3)
 
+        # Visible entry point for desktops that export the native menu globally.
+        help_row = tk.Frame(main_frame)
+        help_row.pack(fill='x')
+        tk.Button(help_row, text='Help (F1)', command=lambda: self.assistance.show_help()).pack(side='right')
+
         # Create labels
         self.sentence_label = tk.Label(
             main_frame,
@@ -333,6 +341,9 @@ class MaliphorsInatorApp:
         # Configure scrollbar
         self.history_text.config(yscrollcommand=scrollbar.set)
         scrollbar.config(command=self.history_text.yview)
+        # Keep first-use guidance visible without filling lists with fake records.
+        self.empty_state = tk.Label(main_frame, wraplength=820, justify='left')
+        self.empty_state.pack(fill='x', pady=4, before=history_frame)
         self._apply_theme(self.root)
 
     def _create_tooltip(self, widget, text):
@@ -381,7 +392,8 @@ class MaliphorsInatorApp:
         return {"theme": "light"}
 
     def _save_ui_preferences(self):
-        return self.generator._write_json(self.UI_PREFERENCES_FILE, {"theme": self.theme_mode})
+        self.preferences['theme'] = self.theme_mode
+        return self.generator._write_json(self.UI_PREFERENCES_FILE, self.preferences)
 
     def _theme_palette(self):
         """Return palette values for the active theme."""
@@ -520,6 +532,7 @@ class MaliphorsInatorApp:
     def show_gallery_dialog(self):
         """Show a visual gallery of generated malaphors (FEAT-16)."""
         dialog = tk.Toplevel(self.root)
+        dialog.bind('<F1>', self.assistance.context_help)
         dialog.title("Malaphor Gallery")
         dialog.geometry("960x720")
         dialog.transient(self.root)
@@ -617,6 +630,7 @@ class MaliphorsInatorApp:
     def show_power_user_tools_dialog(self):
         """Show advanced controls for generation templates, constraints, and metadata."""
         dialog = tk.Toplevel(self.root)
+        dialog.bind('<F1>', self.assistance.context_help)
         dialog.title("Power User Tools")
         dialog.geometry("920x720")
         dialog.transient(self.root)
@@ -897,6 +911,7 @@ class MaliphorsInatorApp:
     def show_add_proverb_dialog(self):
         """Show dialog for adding a new proverb."""
         dialog = tk.Toplevel(self.root)
+        dialog.bind('<F1>', self.assistance.context_help)
         dialog.title("Add New Proverb")
         dialog.geometry("400x200")
         dialog.transient(self.root)
@@ -935,6 +950,7 @@ class MaliphorsInatorApp:
                     "Success",
                     "New proverb added successfully!"
                 )
+                self._refresh_assistance_hint()
                 dialog.destroy()
             else:
                 tkinter.messagebox.showerror("Save failed", "Could not save malaphors.json; the phrase was not added.")
@@ -993,10 +1009,24 @@ class MaliphorsInatorApp:
             if self.generator.add_to_favorites(current_malaphor) is False:
                 tkinter.messagebox.showerror("Save failed", "Could not save favorites.json. Check the destination and permissions.", parent=self.root)
             else:
+                self._refresh_assistance_hint()
                 tkinter.messagebox.showinfo("Success", "Added to favorites!")
+
+    def _refresh_assistance_hint(self):
+        """Keep first-use recommendations aligned with the active collections."""
+        if not self.generator.proverbs:
+            hint = 'No source phrases yet. Use Add New Proverb or Import Malaphors; Help → Getting Started offers a temporary demo.'
+        elif not self.generator.history:
+            hint = 'Ready for your first result: choose all languages and click Generate. Help → Guided Tasks walks you through saving it.'
+        elif not self.generator.favorites:
+            hint = 'Keep a result with Add to Favorites. Find it later in Manage Favorites. Press F1 for help.'
+        else:
+            hint = 'Tip: Ctrl+Shift+P searches actions. Help → Feature Tour can be replayed at any time.'
+        self.empty_state.config(text=hint)
 
     def update_history(self):
         """Update the history display with malaphors and their sources."""
+        self._refresh_assistance_hint()
         # Check if cleanup is needed
         if self.history_text.index('end-1c').split('.')[0] > str(self.HISTORY_CLEANUP_TRIGGER):
             # Keep only the last MAX_HISTORY_LINES lines
@@ -1031,6 +1061,7 @@ class MaliphorsInatorApp:
             imported = asyncio.run(self.generator.import_malaphors(filepath))
             error = getattr(self.generator, "last_import_error", None)
             if imported:
+                self._refresh_assistance_hint()
                 tkinter.messagebox.showinfo("Import complete", "New phrases imported.", parent=self.root)
             elif error:
                 tkinter.messagebox.showerror("Import failed", error, parent=self.root)
@@ -1116,6 +1147,7 @@ class MaliphorsInatorApp:
     def show_manage_phrases_dialog(self):
         """Show dialog for managing (viewing/editing/deleting) phrases."""
         dialog = tk.Toplevel(self.root)
+        dialog.bind('<F1>', self.assistance.context_help)
         dialog.title("Manage Phrases")
         dialog.geometry("800x600")
         dialog.transient(self.root)
@@ -1280,6 +1312,7 @@ class MaliphorsInatorApp:
     def show_manual_combine_dialog(self):
         """Show dialog for manually selecting phrases to combine."""
         dialog = tk.Toplevel(self.root)
+        dialog.bind('<F1>', self.assistance.context_help)
         dialog.title("Manual Phrase Combination")
         dialog.geometry("800x600")
         dialog.transient(self.root)
@@ -1384,6 +1417,7 @@ class MaliphorsInatorApp:
     def show_history_dialog(self):
         """Show dialog for managing history entries."""
         dialog = tk.Toplevel(self.root)
+        dialog.bind('<F1>', self.assistance.context_help)
         dialog.title("Manage History")
         dialog.geometry("800x600")
         dialog.transient(self.root)
@@ -1433,11 +1467,16 @@ class MaliphorsInatorApp:
             end_index = start_index + page_size
             return items[start_index:end_index], total_pages
 
+        empty_hint = tk.Label(dialog, wraplength=740)
+        empty_hint.pack(pady=4)
+        tk.Button(dialog, text='Help with History', command=lambda: self.assistance.show_help('search', parent=dialog)).pack(pady=2)
+
         def update_history_list(search_text=''):
             nonlocal current_items
             history_listbox.delete(0, tk.END)
             current_items, total_pages = paged_items(search_text)
             page_label.config(text=f"Page {page_state['page']} of {total_pages}")
+            empty_hint.config(text='' if current_items else 'No matching history. Clear the search, or close this window and click Generate to create your first result.')
 
             for _, item in current_items:
                 timestamp = item.get('timestamp', '')[:10]
@@ -1517,6 +1556,7 @@ class MaliphorsInatorApp:
     def show_favorites_dialog(self):
         """Show dialog for managing favorite entries."""
         dialog = tk.Toplevel(self.root)
+        dialog.bind('<F1>', self.assistance.context_help)
         dialog.title("Manage Favorites")
         dialog.geometry("800x600")
         dialog.transient(self.root)
@@ -1546,7 +1586,12 @@ class MaliphorsInatorApp:
 
         visible_indices = []
 
+        empty_hint = tk.Label(dialog, wraplength=740)
+        empty_hint.pack(pady=4)
+        tk.Button(dialog, text='Help with Favorites', command=lambda: self.assistance.show_help('generate', parent=dialog)).pack(pady=2)
+
         def update_favorites_list(search_text=''):
+            empty_hint.config(text='' if self.generator.favorites else 'No favorites yet. Close this window, generate a result and click Add to Favorites.')
             favorites_listbox.delete(0, tk.END)
             visible_indices.clear()
             if search_text:
@@ -1558,6 +1603,8 @@ class MaliphorsInatorApp:
                 for i, item in enumerate(self.generator.favorites):
                     visible_indices.append(i)
                     favorites_listbox.insert(tk.END, item)
+            if search_text and not visible_indices:
+                empty_hint.config(text='No matching favorites. Clear the search or try a shorter term.')
 
         def on_search(*args):
             update_favorites_list(search_var.get())
@@ -1610,7 +1657,7 @@ class MaliphorsInatorApp:
     def setup_keyboard_shortcuts(self):
         """Setup keyboard shortcuts for common actions (UX-5)."""
         self.root.bind('<Control-g>', lambda e: self.generate_malaphor())
-        self.root.bind('<Control-c>', lambda e: self.copy_to_clipboard())
+        self.root.bind('<Control-c>', self._copy_shortcut)
         self.root.bind('<Control-h>', lambda e: self.show_history_dialog())
         self.root.bind('<Control-f>', lambda e: self.focus_search_box())
         self.root.bind('<Control-s>', lambda e: self.add_to_favorites())
@@ -1618,10 +1665,25 @@ class MaliphorsInatorApp:
         self.root.bind('<Control-Y>', lambda e: self.redo_last_action())
         self.root.bind('<Control-Shift-Z>', lambda e: self.redo_last_action())
 
+    def _copy_shortcut(self, event):
+        if isinstance(event.widget, (tk.Text, tk.Entry, ttk.Entry, ttk.Combobox)):
+            return None
+        self.copy_to_clipboard()
+        return 'break'
+
     def focus_search_box(self):
-        """Focus the search box if it exists."""
-        # This would be called if there's a search box in the main window
-        pass
+        """Open source search and focus its first entry."""
+        self.show_manual_combine_dialog()
+        dialog = self.root.winfo_children()[-1]
+        def focus(widget):
+            for child in widget.winfo_children():
+                if isinstance(child, (tk.Entry, ttk.Entry)):
+                    child.focus_set()
+                    return True
+                if focus(child):
+                    return True
+            return False
+        focus(dialog)
 
     def undo_last_action(self):
         """Undo the most recent destructive action."""
@@ -1686,6 +1748,7 @@ class MaliphorsInatorApp:
 
                 # Show format selection dialog
                 dialog = tk.Toplevel(self.root)
+                dialog.bind('<F1>', self.assistance.context_help)
                 dialog.title("Copy Format")
                 dialog.geometry("400x200")
                 dialog.transient(self.root)
@@ -1717,6 +1780,7 @@ class MaliphorsInatorApp:
             return
 
         dialog = tk.Toplevel(self.root)
+        dialog.bind('<F1>', self.assistance.context_help)
         dialog.title("Recent Searches")
         dialog.geometry("300x300")
         dialog.transient(self.root)
@@ -1756,6 +1820,7 @@ class MaliphorsInatorApp:
     def show_suggestions_dialog(self):
         """Show dialog with multiple suggestions for user to select from (FEAT-2)."""
         dialog = tk.Toplevel(self.root)
+        dialog.bind('<F1>', self.assistance.context_help)
         dialog.title("Generate Multiple Suggestions")
         dialog.geometry("800x600")
         dialog.transient(self.root)
@@ -1827,6 +1892,7 @@ class MaliphorsInatorApp:
         similar = self.generator.detect_similar_phrases(original)
         if similar:
             dialog = tk.Toplevel(self.root)
+            dialog.bind('<F1>', self.assistance.context_help)
             dialog.title("Similar Phrase Warning")
             dialog.geometry("500x300")
             dialog.transient(self.root)
@@ -1855,6 +1921,7 @@ class MaliphorsInatorApp:
     def show_batch_import_dialog(self):
         """Show dialog for batch importing phrases with auto-split preview (FEAT-8)."""
         dialog = tk.Toplevel(self.root)
+        dialog.bind('<F1>', self.assistance.context_help)
         dialog.title("Batch Import Phrases")
         dialog.geometry("900x600")
         dialog.transient(self.root)
@@ -1931,6 +1998,7 @@ class MaliphorsInatorApp:
     def show_weighted_generation_dialog(self):
         """Show dialog for weighted generation (based on ratings)."""
         dialog = tk.Toplevel(self.root)
+        dialog.bind('<F1>', self.assistance.context_help)
         dialog.title("Smart Generation (Weighted by Ratings)")
         dialog.geometry("400x200")
         dialog.transient(self.root)
@@ -1961,6 +2029,8 @@ class MaliphorsInatorApp:
     def run(self):
         """Start the application."""
         self.setup_keyboard_shortcuts()
+        if not self.preferences.get('onboarding_complete') and not self.generator.load_errors:
+            self._welcome_after = self.root.after(100, self.assistance.welcome)
         try:
             self.root.mainloop()
         finally:
@@ -1973,6 +2043,9 @@ class MaliphorsInatorApp:
             self.generator._run_auto_save()
         except Exception:
             pass
+        if hasattr(self, '_welcome_after'):
+            self.root.after_cancel(self._welcome_after)
+        self.assistance.close()
         self._cleanup_tooltips()
         for dialog in self.dialogs.values():
             try:
@@ -1989,6 +2062,7 @@ class MaliphorsInatorApp:
     def show_source_management_dialog(self):
         """Show dialog for managing phrase sources."""
         dialog = tk.Toplevel(self.root)
+        dialog.bind('<F1>', self.assistance.context_help)
         dialog.title("Manage Phrase Sources - maliphors-inator")
         dialog.geometry("700x500")
 
@@ -2095,6 +2169,7 @@ class MaliphorsInatorApp:
     def show_database_validation_dialog(self):
         """Show dialog for database validation and deduplication."""
         dialog = tk.Toplevel(self.root)
+        dialog.bind('<F1>', self.assistance.context_help)
         dialog.title("Validate & Clean Database - maliphors-inator")
         dialog.geometry("800x600")
 
@@ -2204,6 +2279,7 @@ class MaliphorsInatorApp:
         import asyncio
 
         dialog = tk.Toplevel(self.root)
+        dialog.bind('<F1>', self.assistance.context_help)
         dialog.title("Tag Management")
         dialog.geometry("700x500")
         dialog.configure(padx=10, pady=10)
@@ -2317,6 +2393,7 @@ class MaliphorsInatorApp:
         import tkinter.ttk as ttk
 
         dialog = tk.Toplevel(self.root)
+        dialog.bind('<F1>', self.assistance.context_help)
         dialog.title("Generate by Category")
         dialog.geometry("500x400")
         dialog.configure(padx=10, pady=10)
@@ -2386,6 +2463,7 @@ class MaliphorsInatorApp:
         import tkinter.ttk as ttk
 
         dialog = tk.Toplevel(self.root)
+        dialog.bind('<F1>', self.assistance.context_help)
         dialog.title("Statistics Dashboard")
         dialog.geometry("800x600")
         dialog.configure(padx=10, pady=10)

@@ -10,7 +10,7 @@ Developers test the active working tree daily. There is no established security 
 
 ## Reporting an issue
 
-No private security-reporting channel is planned at present. This project does not currently offer a confidential reporting route. Do not assume repository issues are private or include sensitive data or exploit details in a public issue.
+Report suspected vulnerabilities privately to richardnoragon@mac.com. Use a subject identifying maliphors-inator and the affected revision. Do not include exploit details or sensitive data in public GitHub issues. Ordinary non-sensitive bugs can be reported through [GitHub Issues](https://github.com/richardnoragon/maliphors-inator/issues).
 
 A report should identify the affected revision, relevant files, environment, reproduction steps, and impact. Remove personal data and credentials from logs or example files before sharing them. No response-time commitment has been established.
 

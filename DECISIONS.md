@@ -15,7 +15,7 @@ The project is now `maliphors-inator`. This supersedes decision 5 below while pr
 ### 1. Keep the primary product as a Python desktop application
 
 Decision:
-- The main runtime experience is built in Python and centered on the Tkinter GUI in [malaphor_ui.py](malaphor_ui.py).
+- The main runtime experience is built in Python and centered on the Tkinter GUI in `malaphor_ui.py` (now [maliphors_inator_ui.py](maliphors_inator_ui.py)).
 - The startup path is routed through [main.py](main.py), which invokes the GUI by default and the CLI when command-line arguments are present.
 
 Rationale:
@@ -30,7 +30,7 @@ Consequences:
 ### 2. Use a single generator engine as the application core
 
 Decision:
-- The central behavior lives in `MalaphorGenerator` inside [malaphor_logic.py](malaphor_logic.py).
+- The central behavior lives in `MalaphorGenerator` inside `malaphor_logic.py` (now [maliphors_inator_logic.py](maliphors_inator_logic.py)).
 - The CLI and GUI both delegate to that engine for generation, search, import/export, and persistence actions.
 
 Rationale:
@@ -47,7 +47,7 @@ Consequences:
 Decision:
 - Phrase data is stored in [malaphors.json](malaphors.json).
 - Generated history is stored in [history.json](history.json).
-- Favorites are stored in [favorites.json](favorites.json).
+- Favorites are stored in `favorites.json`.
 - Runtime UI settings are written to `ui_preferences.json` when the app runs.
 
 Rationale:
@@ -63,7 +63,7 @@ Consequences:
 
 Decision:
 - [main.py](main.py) is the application entry point.
-- [malaphor_cli.py](malaphor_cli.py) exposes argparse-driven command-line actions for generation, search, import, and export.
+- `malaphor_cli.py` (now [maliphors_inator_cli.py](maliphors_inator_cli.py)) exposes argparse-driven command-line actions for generation, search, import, and export.
 - The Tkinter GUI remains the primary end-user experience.
 
 Rationale:
@@ -166,3 +166,13 @@ The current repository decisions are consistent with a project that is already b
 ## Alpha technical checkpoint on 2026-10-01
 
 The [architecture review](ARCHITECTURE.md#alpha-architecture-review-on-2026-10-01) confirms that the current boundaries and JSON storage support the core alpha scope without a major rewrite. JSON writes use atomic replacement; core mutations commit memory after successful persistence. Initial alpha validation/support is limited to Ubuntu 26.04.1/Python 3.14.4/Tk 8.6.17. The 214-test technical pass and backup recovery are complete; human usability and independent developer handoff still gate alpha declaration.
+
+## ADR-011 — Offline user assistance (2026-11-11)
+
+Status: accepted and implemented.
+
+Decision: implement the Inator assistance outline as a local `UserAssistance` module, with topic metadata, first-launch orientation, real-control tours, guided tasks, context help and diagnostics. Retain the current proprietary license and use richardnoragon@mac.com for private security/conduct reports.
+
+Reason: first-time users need an achievable first task and existing users need discoverable help without leaving the app or sharing data with an external service. The same content model supports concepts, troubleshooting and related articles.
+
+Consequences: help must ship with each daily snapshot and change alongside controls/formats. Completion preferences share the existing JSON writer; demo sessions use a separate process/directory. Guided actions call existing app methods. File recovery remains user controlled. Remote AI assistance is outside the offline design and requires a separate explicit decision.

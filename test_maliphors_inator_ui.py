@@ -31,6 +31,8 @@ class TestMalaphorUI(unittest.TestCase):
         self.app.generator.stop_auto_save()
         self.app.generator = MagicMock(spec=MalaphorGenerator)
         self.app.generator.history = []
+        self.app.generator.proverbs = []
+        self.app.generator.favorites = []
         
         # Set up mock generator responses
         self.app.generator.generate_malaphor.return_value = {

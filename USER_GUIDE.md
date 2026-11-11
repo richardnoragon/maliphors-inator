@@ -50,6 +50,18 @@ The app also includes gallery, statistics, theme, image export, and power-user d
 
 Generation writes history; adding favorites writes favorites. The desktop also saves history and favorites every five minutes and flushes them when its main loop exits. Large import/export operations can briefly pause the UI.
 
+## Help and first steps
+
+On first launch, Getting Started explains phrases, history and favorites. Create New Phrase and Import Existing Data use the current library; Try Demo opens a separate temporary app whose edits are discarded. Done / Skip for now saves onboarding completion. Replay it from Help whenever needed.
+
+Use the Help menu or Help (F1) button for the feature tour, guided tasks, user guide, searchable help, troubleshooting, keyboard shortcuts, release notes, reporting and About. F1 in a major dialog opens its relevant article. The tour highlights actual controls with Back/Next/Finish/Cancel. It does not perform actions automatically.
+
+Guided Tasks walks through generation/favorites, import, or safe backup/recovery. Saved-data steps validate actual changes; manual steps require your confirmation. Cancelling a guide stops instruction but keeps actions already completed. Backup instructions require closing the app before copying/restoring; the guide does not replace files.
+
+Ctrl+Shift+P searches actions. Ctrl+F opens source search in Manual Combine. Ctrl+G generates, Ctrl+H opens history and Ctrl+S saves a favorite. Ctrl+C keeps normal text copy in editable fields; elsewhere it copies the displayed result. Help → Keyboard Shortcuts lists all bindings. Search Help searches local documentation, not your phrases.
+
+Troubleshooting shows read-only directory/count/recovery diagnostics and links symptoms to next steps. Reports are never sent automatically. Ordinary bugs go to GitHub Issues; private security or conduct reports go to richardnoragon@mac.com. See the [assistance standard](docs/USER_ASSISTANCE.md) for the full framework.
+
 ## CLI commands
 
 Both `python main.py` with arguments and `python maliphors_inator_cli.py` accept these options:

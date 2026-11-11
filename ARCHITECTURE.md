@@ -64,3 +64,15 @@ Runtime files are created as the corresponding features are used. History export
 The shared generator owns the core workflows and persistence; Tk and argparse remain separate interfaces. The existing module boundaries and JSON formats can support the declared alpha scope without a major rewrite. The technical review exercised fresh setup, both entry points, file round trips, save failures, and backup restoration; a database or UI-framework migration is not needed for these workflows.
 
 The persistence changes are incremental and retain existing file formats. Remaining limitations are single-writer operation, in-memory loading, UI pauses during file operations, and no all-files transaction. Advanced cleanup, template/profile editing, and separate Qt tools retain narrower validation than the core alpha workflows. Extending scope to concurrent writers, large datasets, or ordinary-user reliability will require further design and testing. This review was performed by the coding agent; independent developer handoff remains open.
+
+## Hub, services and interface adapters
+
+There is no separate ecosystem hub or plugin host in this checkout. Within one process, `MalaphorGenerator` owns the active library and saved collections. The CLI and Tk UI are adapters over that shared service. The standalone Qt tools are independent processes; they do not share a live event bus or generator instance.
+
+The storage is JSON rather than relational tables. History records retain source text, favorites retain displayed strings, and ratings identify source pairs. These are textual associations, not database foreign keys; editing a phrase does not cascade a rename through every collection. The search index is derived state rebuilt after library changes.
+
+## Event communication and extensions
+
+Tk commands and bindings call application methods directly; rendering is refreshed explicitly after successful changes. Background auto-save uses the generator lock. There is no cross-process notification, network synchronization, plugin discovery or dependency injection framework.
+
+New generation/storage behavior should extend the generator and preserve format compatibility. New interfaces should call that service rather than duplicate persistence. New help topics and action mappings belong in `user_assistance.py`; the [assistance standard](docs/USER_ASSISTANCE.md) describes its boundaries. A future plugin system, shared hub or database would need an explicit decision covering lifecycle, ownership, migrations and concurrent writes before implementation.

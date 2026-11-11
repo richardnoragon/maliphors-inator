@@ -10,9 +10,11 @@ The project is **pre-alpha**, with technical alpha checks passed on 2026-10-01 (
 
 ## Screenshots
 
-No screenshots are included in this repository yet.
+![Main generator with sample data](docs/images/main-window.png)
 
-This section is reserved for UI captures showing the main generator, gallery, settings, or history views once a representative image is added to the project documentation.
+![Searchable offline help](docs/images/search-help.png)
+
+Captured from the desktop application using disposable sample data on 2026-11-11.
 
 ## Features
 
@@ -25,6 +27,7 @@ This section is reserved for UI captures showing the main generator, gallery, se
 - Open separate Qt utilities for editing JSON and viewing logs
 - Browse generated malaphors in a gallery-style UI
 - Use the CLI for generation, source phrase search, and phrase import/export
+- Learn with first-launch guidance, a temporary demo, a control tour, guided tasks and searchable offline help (F1)
 
 ## Installation
 
@@ -114,6 +117,8 @@ The project is organized around a small set of Python modules:
 [ROADMAP.md](ROADMAP.md) records pre-alpha milestones, completed automated gates, and pending daily developer checks. Supporting implementation plans live in [.specify/features/improvements-roadmap](.specify/features/improvements-roadmap).
 
 ## Documentation and testing
+
+Browse the [documentation index](TOC.md), [FAQ](FAQ.md), and [in-app assistance guide](docs/USER_ASSISTANCE.md).
 
 - [User guide](USER_GUIDE.md): desktop actions, CLI limits, import formats, and backups.
 - [Architecture](ARCHITECTURE.md): modules, dependencies, and local data files.

@@ -112,3 +112,9 @@ python scripts/desktop_walkthrough.py
 ```
 
 The same agent rehearsed a small CLI help-text change and validated both entry points in the isolated copy, then restored the file. This supports the handoff instructions but does not complete the independent developer or human usability gates.
+
+## User assistance regression and acceptance
+
+`python -m pytest test_user_assistance.py` covers local search and related articles, onboarding preference preservation and save failures, guided generation/favorite validation with real files, no-result help, action execution, tour resize/cancel cleanup, F1 from a child entry, read-only diagnostics and demo-process isolation/cleanup. Real Tk windows require a display. Launcher tests also check that the new module ships in isolated bundles.
+
+Follow the [assistance acceptance checks](docs/USER_ASSISTANCE.md#acceptance-checks) for human review. In particular, verify readable sizing, keyboard traversal, first launch/relaunch, cancel/replay, an import cancellation and actual restored data. Automated checks do not establish usability or independent handoff.

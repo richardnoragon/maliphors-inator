@@ -48,6 +48,24 @@ If a release candidate is useful, freeze the chosen scope, tag a prerelease of t
 
 Current naming and rebranding validation: [REBRANDING.md](REBRANDING.md). The evidence below retains the paths and names used at each original checkpoint.
 
+## Feature freeze and candidate trials
+
+For a release candidate, record the selected scope, version, exact commit, supported environments and reviewer in the roadmap. Freeze feature additions; accept only reviewed fixes, documentation corrections and release blockers. A changed candidate gets a new prerelease identifier rather than moving an existing tag.
+
+Trial the candidate in a clean installation with disposable data, then with backed-up representative data. Exercise first launch, help/tour, generation, search, imports/exports, favorites/history, shutdown/reopen and backup restoration. Record start/end dates, environments, participants, failures and fixes. The maintainer chooses the trial duration and acceptance scope before the trial starts; no default elapsed period counts as approval. Beta additionally requires ordinary-user reliability evidence under the stage definitions.
+
+For every fix, run the affected regression checks; run the full suite and dependency checks for the final candidate. Repeat affected manual workflows. Startup failures, data loss or failed core save/recovery workflows block promotion. Record limitations and unvalidated environments in release notes.
+
+## Release approval record
+
+Before publication, record the version and commit, scope/freeze status, test commands/results, trial evidence, open issues, backup/migration instructions, license/dependency review and approving maintainer/date. The maintainer explicitly approves the reviewed candidate; automated passes alone do not approve a release. Publish the tag and notes for that exact commit, then verify installation from the published artifact. If a regression appears, document its impact and prepare a new reviewed fix release; do not silently replace an existing version.
+
+## Template and user-assistance validation on 2026-11-11
+
+The updated working tree based on `ea55ca8` passed **228 tests in 7.48 seconds** on Linux/Python 3.14.4 using the available Tk display. Command: `.venv/bin/python -m pytest -q -o log_cli=false`. This includes all existing data/CLI/desktop/launcher checks and 11 assistance checks covering first launch/relaunch, saved preferences and failure handling, real guided actions, cancelled import, article/action search, tour resize/cancel/finish, context help, read-only diagnostics, isolated demo cleanup and visible help controls.
+
+Checked 235 local documentation/image targets and `git diff --check`; both passed. Captured and inspected main/help screenshots using disposable data. Test log: `/tmp/maliphors-template-tests.log` (temporary). Personal and installed daily-test datasets were not replaced. The installer now bundles help, but the user's installed snapshot has not been updated by this pass. Human usability review and independent handoff remain open; no release or stage promotion is implied.
+
 ## Validation evidence for the next milestone
 
 Validated on 2026-09-30 against the working tree based on commit `68feba7`.

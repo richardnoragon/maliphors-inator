@@ -31,7 +31,7 @@ Validated on 2026-09-30: **135 tests passed** in a disposable Linux/Python 3.14.
 - [x] Maintain [ARCHITECTURE.md](ARCHITECTURE.md), [TESTING.md](TESTING.md), [SECURITY.md](SECURITY.md), [USER_GUIDE.md](USER_GUIDE.md), and [RELEASE_PROCESS.md](RELEASE_PROCESS.md).
 - [x] Remove stale implementation claims and document the active pre-alpha app under daily developer testing.
 
-Documentation checkpoint, 2026-09-30: reviewed entry points, dependencies, storage, and test configuration; checked 88 local documentation links and eight CLI examples in a temporary data directory. Corrected references to an absent Rust/Tauri directory and documented CLI limits, import formats, separate Qt tools, and backup behavior. No private security-reporting channel is planned at present.
+Documentation checkpoint, 2026-09-30: reviewed entry points, dependencies, storage, and test configuration; checked 88 local documentation links and eight CLI examples in a temporary data directory. Corrected references to an absent Rust/Tauri directory and documented CLI limits, import formats, separate Qt tools, and backup behavior. At that checkpoint no private reporting channel was planned; the current private contact is now published in [SECURITY.md](SECURITY.md).
 
 Ongoing gate: update affected docs and the changelog whenever behavior changes. These completed documentation checks do not close the interactive testing or alpha-readiness gates below.
 
@@ -41,6 +41,15 @@ Ongoing gate: update affected docs and the changelog whenever behavior changes. 
 - keep auto-save, history, and favorites handling resilient
 - maintain stable search and import/export behavior
 - verify the generator continues to handle common user workflows without regressions
+
+## Template and assistance implementation — 2026-11-11
+
+- [x] Apply the document outlines, add FAQ/conduct/index/license reference, and publish the [coverage map](docs/TEMPLATE_COVERAGE.md).
+- [x] Add offline onboarding, isolated demo, control tour, guided tasks, article search, F1 context help, troubleshooting and action search; document the [assistance standard](docs/USER_ASSISTANCE.md).
+- [x] Bundle help with daily snapshots and add real-widget/lifecycle regression checks. Full suite: 228 passed in 7.48 seconds on Linux/Python 3.14.4; 235 local doc/image targets resolve; screenshots captured and inspected using disposable data.
+- [ ] Complete human acceptance of the assistance workflows and incorporate findings into the open usability gate.
+
+This pass does not declare alpha or replace the dated technical evidence below. Remote AI help remains an optional future design requiring a provider/data-handling decision.
 
 ## Release milestones
 

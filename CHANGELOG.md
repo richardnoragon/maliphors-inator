@@ -8,6 +8,8 @@ All notable changes to this project are recorded here using semantic versioning.
 - Adopt `maliphors-inator` across the repository, workspace, current documentation, GUI, CLI, runtime modules, and daily launcher. See [REBRANDING.md](REBRANDING.md) for migration and validation. Earlier branding entries below describe their original changes.
 
 ### Added
+- 2026-11-11: Offline Help menu, first-launch guidance, temporary demo, real-control feature tour, guided tasks, F1 context help, searchable articles, troubleshooting diagnostics and Ctrl+Shift+P action palette. Daily snapshots include help content.
+- FAQ, code of conduct, documentation index, license reference, template coverage map and app screenshots; completed contributor/release/architecture guidance and private reporting contact.
 - Installable Linux Daily Test snapshot with desktop/menu launchers, a dedicated environment, separate persistent data, 14 startup backups, rotating logs, and a single-session lock.
 - Daily failure-path regression checks and a Linux/Tk walkthrough that drives real file dialogs using temporary data. The 2026-09-30 daily pass completed with 174 tests passing; visual review remains open.
 - Public branding has been updated to Malaphors-inator in the main project docs and UI title, while internal module names remain historically stable to avoid breaking the current implementation.
@@ -26,6 +28,7 @@ All notable changes to this project are recorded here using semantic versioning.
 - Completed the UI-side language selector so the main Tkinter app can generate within a chosen language while defaulting to all available phrase sets.
 
 ### Fixed
+- Preserve onboarding and other preference keys when saving a theme; make Ctrl+F open source search and preserve normal Ctrl+C inside text fields. Correct the user-guide template filename’s trailing newline.
 - Alpha technical pass, 2026-10-01: preserve existing JSON files on interrupted writes, keep core state unchanged after failed edits/deletions/reordering, protect unreadable saved files, persist deletion undo/redo, preserve metadata and refresh phrase search, and report generation/deletion write failures.
 - Prevent duplicate-only generation from hanging and fix tooltip errors when hovering listboxes. Added recovery and regression checks; the isolated Ubuntu/Python 3.14.4 snapshot passed 214 tests and the real-dialog walkthrough. Human usability review and independent developer handoff remain open.
 - Reject malformed phrase imports before changing the library; failed import saves leave memory and search unchanged.
