@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import QApplication
 import tkinter as tk
 
 # Ensure we're using the test configuration
-os.environ['MALAPHOR_TEST_MODE'] = 'True'
+os.environ['MALIPHORS_INATOR_TEST_MODE'] = 'True'
 
 @pytest.fixture(scope='session')
 def qapp():
@@ -63,7 +63,7 @@ def qt_log_manager(qapp):
 @pytest.fixture
 def temp_test_dir():
     """Create a temporary directory for test files."""
-    with tempfile.TemporaryDirectory(prefix='malaphor_test_') as temp_dir:
+    with tempfile.TemporaryDirectory(prefix='maliphors_inator_test_') as temp_dir:
         old_cwd = os.getcwd()
         os.chdir(temp_dir)
         yield temp_dir

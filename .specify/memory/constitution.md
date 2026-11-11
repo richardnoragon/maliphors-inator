@@ -1,9 +1,11 @@
-# Project Constitution: Malaphors Generator
+# Project Constitution: maliphors-inator
 
-**Version:** 2.0  
-**Last Updated:** 2026-09-07  
-**Status:** Active  
+**Version:** 2.1\
+**Last Updated:** 2026-10-10\
+**Status:** Active\
 **Framework:** github-spec-kit 2.0.0
+
+> Product branding note: this project is publicly presented as “maliphors-inator.” Repository, workspace, runtime modules, and application identity follow the current name. See [rebranding](../../REBRANDING.md); historical evidence and domain data retain their original names.
 
 ---
 
@@ -63,9 +65,9 @@ This is a **personal/educational project** maintained primarily for:
 
 ### Primary Implementation vs. Experimental
 
-- **Primary:** Python 3.10+ with Tkinter (stable, production-ready)
-- **Secondary/Experimental:** Rust/Tauri implementation (for learning, not primary focus)
-- Implementation changes in Rust do not supersede Python standards or decisions
+- **Primary:** Python 3.10+ with Tkinter; application pre-alpha, alpha readiness in progress.
+- **Earlier experimental direction:** Rust/Tauri; no such implementation is present in this checkout.
+- [Development-stage definitions](../../alpha.md) govern maturity; [ROADMAP.md](../../ROADMAP.md#alpha-readiness) records evidence and open gates. Framework/constitution versions do not declare application readiness.
 
 ### Intended Audience
 
@@ -136,7 +138,7 @@ Choose solutions based on real value, not dogma:
 **Secondary Implementation (Experimental):**
 - **Language:** Rust
 - **Framework:** Tauri (for desktop packaging)
-- **Status:** Learning/experimentation (not production parity)
+- **Status:** Historical direction; implementation absent from this checkout
 
 ### Architectural Decisions
 
@@ -147,8 +149,8 @@ Choose solutions based on real value, not dogma:
 - Export/import functionality available for data portability
 
 **Module Separation:**
-- `malaphor_logic.py` - Core generation algorithm and data management (business logic)
-- `malaphor_ui.py` - Tkinter GUI implementation (presentation layer)
+- `maliphors_inator_logic.py` - Core generation algorithm and data management (business logic)
+- `maliphors_inator_ui.py` - Tkinter GUI implementation (presentation layer)
 - `log_manager.py` - Logging interface and history
 - `settings_manager.py` - Settings persistence and GUI
 - `main.py` - Application entry point
@@ -180,10 +182,10 @@ Choose solutions based on real value, not dogma:
 
 | Component | Minimum Coverage | Notes |
 |-----------|-----------------|-------|
-| `malaphor_logic.py` | 85% | Core business logic |
+| `maliphors_inator_logic.py` | 85% | Core business logic |
 | `log_manager.py` | 80% | Data management |
 | `settings_manager.py` | 80% | Settings and persistence |
-| `malaphor_ui.py` | 70% | UI is harder to test; focus on business logic within UI |
+| `maliphors_inator_ui.py` | 70% | UI is harder to test; focus on business logic within UI |
 
 **Coverage Measurement:**
 ```bash
@@ -215,7 +217,7 @@ from pathlib import Path
 import tkinter
 
 # Local modules
-from malaphor_logic import MalaphorGenerator
+from maliphors_inator_logic import MalaphorGenerator
 ```
 
 ### Documentation Standards
@@ -293,10 +295,10 @@ from malaphor_logic import MalaphorGenerator
 ### Project Structure
 
 ```
-malaphors-rs/
+maliphors-inator/
 ├── main.py                    # Application entry point
-├── malaphor_logic.py          # Core business logic
-├── malaphor_ui.py             # Tkinter GUI
+├── maliphors_inator_logic.py          # Core business logic
+├── maliphors_inator_ui.py             # Tkinter GUI
 ├── log_manager.py             # Logging interface
 ├── settings_manager.py        # Settings management
 ├── malaphors.json             # Phrase database
@@ -331,8 +333,8 @@ malaphors-rs/
 
 | Module | Responsibility | Test File |
 |--------|-----------------|-----------|
-| `malaphor_logic.py` | Phrase loading, generation, history/favorites | `test_malaphor_logic.py` |
-| `malaphor_ui.py` | Tkinter GUI components, event handling | `test_malaphor_ui.py` |
+| `maliphors_inator_logic.py` | Phrase loading, generation, history/favorites | `test_maliphors_inator_logic.py` |
+| `maliphors_inator_ui.py` | Tkinter GUI components, event handling | `test_maliphors_inator_ui.py` |
 | `log_manager.py` | Logging to file, retrieving log entries | `test_logging.py` |
 | `settings_manager.py` | Settings CRUD, persistence, GUI | `test_settings_manager.py` |
 | `main.py` | Application initialization and bootstrap | Integration tests |
@@ -518,10 +520,10 @@ pytest
 pytest --cov=. --cov-report=term-missing
 
 # Run specific test file
-pytest test_malaphor_logic.py
+pytest test_maliphors_inator_logic.py
 
 # Run specific test function
-pytest test_malaphor_logic.py::test_generate_random_malaphor
+pytest test_maliphors_inator_logic.py::test_generate_random_malaphor
 ```
 
 ### Style & Quality Checks

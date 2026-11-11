@@ -1,9 +1,13 @@
-# GitHub Issues List - Malaphors Generator Improvements Roadmap
+# GitHub Issues List - maliphors-inator Improvements Roadmap
+
+Current naming and module mappings: [REBRANDING.md](REBRANDING.md). Completed-task descriptions retain their original names.
 
 **Total Issues:** 37
-**Repository:** malaphors-rs
+**Repository:** maliphors-inator
 **Created:** 2026-09-07
-**Version:** 1.0.0
+**Updated:** 2026-10-01
+**Version:** 1.1.0
+**Application status:** Pre-alpha; alpha readiness in progress as of 2026-10-01. See the [readiness gates](ROADMAP.md#alpha-readiness) and [stage definitions](alpha.md). Feature completion below does not establish application maturity; the full enhancement backlog is not an alpha prerequisite.
 **Phase 1 Status:** ✅ COMPLETE (2026-09-08)
 **Phase 2 Status:** ✅ COMPLETE (2026-09-10)
 
@@ -1721,7 +1725,7 @@ If you want to create all issues programmatically:
 # Create all issues via GitHub CLI (gh)
 # Prerequisites: gh auth login
 
-REPO="richardnoragon/malaphors-rs"
+REPO="richardnoragon/maliphors-inator"
 
 # Issue 1: UX-1
 gh issue create -R $REPO \
@@ -1760,6 +1764,9 @@ gh issue create -R $REPO \
 ---
 
 **Generated:** 2026-09-07
-**Repository:** malaphors-rs
+**Repository:** maliphors-inator
 **Specification Document:** `.specify/features/improvements-roadmap/spec.md`
 
+## Alpha technical checkpoint
+
+On 2026-10-01, the reviewed snapshot passed 214 tests, dependency checks, the real-dialog walkthrough, and backup recovery. Architecture review and initial Ubuntu 26.04.1/Python 3.14.4/Tk 8.6.17 validation are complete. The application remains pre-alpha pending human usability review and independent developer handoff. See the [current gates](ROADMAP.md#alpha-readiness) and [validation record](RELEASE_PROCESS.md#alpha-technical-validation-on-2026-10-01).

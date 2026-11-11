@@ -1,6 +1,10 @@
 # Speckit Project Structure
 
-This directory contains the specification-driven development framework for the Malaphors Generator project.
+This directory contains the specification-driven development framework for the maliphors-inator project.
+
+## Current repository status
+
+The application is pre-alpha, with alpha readiness in progress as of 2026-10-01. [Stage definitions](../alpha.md) describe the developer-handoff threshold; [ROADMAP.md](../ROADMAP.md#alpha-readiness) owns current evidence and open gates. Framework/specification version numbers do not establish application maturity. The application already includes the primary Python/Tkinter workflow, CLI capability, phrase database tooling, persistence, gallery features, and supporting settings/logging modules. The artifacts in this directory document the current backlog and roadmap rather than a purely speculative greenfield plan.
 
 ## Directory Structure
 
@@ -159,3 +163,7 @@ For issues or questions about speckit:
 ---
 
 **Note:** This structure enables specification-driven development, ensuring clear requirements, thoughtful planning, and intentional implementation aligned with the project's core principles.
+
+## Alpha technical checkpoint
+
+On 2026-10-01, the reviewed snapshot passed 214 tests, dependency checks, the real-dialog walkthrough, and backup recovery. Architecture review and initial Ubuntu 26.04.1/Python 3.14.4/Tk 8.6.17 validation are complete. The application remains pre-alpha pending human usability review and independent developer handoff. See the [current gates](../ROADMAP.md#alpha-readiness) and [validation record](../RELEASE_PROCESS.md#alpha-technical-validation-on-2026-10-01).

@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-import malaphor_cli
+import maliphors_inator_cli
 
 
 class DummyGenerator:
@@ -23,6 +23,9 @@ class DummyGenerator:
             "source1": "Source A",
             "source2": "Source B",
         }
+
+    def _save_history_entry(self, entry):
+        return True
 
     def generate_multiple(self, count=5, exclude_pairs=None, language=None):
         self.last_language = language
@@ -69,12 +72,12 @@ class DummyGenerator:
 @pytest.fixture
 def dummy_generator(monkeypatch):
     instance = DummyGenerator()
-    monkeypatch.setattr(malaphor_cli, "MalaphorGenerator", lambda: instance)
+    monkeypatch.setattr(maliphors_inator_cli, "MalaphorGenerator", lambda: instance)
     return instance
 
 
 def test_cli_generate_prints_output(dummy_generator, capsys):
-    exit_code = malaphor_cli.main(["--generate", "--count", "2", "--output-format", "plain"])
+    exit_code = maliphors_inator_cli.main(["--generate", "--count", "2", "--output-format", "plain"])
 
     assert exit_code == 0
     output = capsys.readouterr().out
@@ -83,7 +86,7 @@ def test_cli_generate_prints_output(dummy_generator, capsys):
 
 
 def test_cli_generate_passes_language_to_generator(dummy_generator, capsys):
-    exit_code = malaphor_cli.main(["--generate", "--language", "es", "--output-format", "json"])
+    exit_code = maliphors_inator_cli.main(["--generate", "--language", "es", "--output-format", "json"])
 
     assert exit_code == 0
     assert dummy_generator.last_language == "es"
@@ -91,7 +94,7 @@ def test_cli_generate_passes_language_to_generator(dummy_generator, capsys):
 
 
 def test_cli_search_outputs_json(dummy_generator, capsys):
-    exit_code = malaphor_cli.main(["--search", "bird", "--output-format", "json"])
+    exit_code = maliphors_inator_cli.main(["--search", "bird", "--output-format", "json"])
 
     assert exit_code == 0
     data = json.loads(capsys.readouterr().out)
@@ -103,8 +106,8 @@ def test_cli_import_and_export(dummy_generator, tmp_path, capsys):
     export_path = tmp_path / "out.json"
     import_path.write_text("{}", encoding="utf-8")
 
-    import_exit = malaphor_cli.main(["--import-file", str(import_path)])
-    export_exit = malaphor_cli.main(["--export", str(export_path), "--export-format", "text"])
+    import_exit = maliphors_inator_cli.main(["--import-file", str(import_path)])
+    export_exit = maliphors_inator_cli.main(["--export", str(export_path), "--export-format", "text"])
     output = capsys.readouterr().out
 
     assert import_exit == 0

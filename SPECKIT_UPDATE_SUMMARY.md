@@ -1,5 +1,7 @@
 # Speckit Update Summary
 
+> Historical implementation/framework record. Current application status is pre-alpha, with alpha readiness in progress; see [ROADMAP.md](ROADMAP.md#alpha-readiness) and [stage definitions](alpha.md). Completion and version labels below refer to the recorded work.
+
 **Date:** 2026-09-08  
 **Previous Version:** Unknown (not explicitly tracked)  
 **New Version:** 2.0.0  
@@ -189,4 +191,4 @@ See [CHANGELOG.md](CHANGELOG.md) for the release log and version history.
 
 ---
 
-**Summary:** The Malaphors Generator project now has specification-driven development fully enabled with Speckit 2.0.0. All 10 workflow commands are available through GitHub Copilot Chat, comprehensive project constitution is in place, and the framework is ready for specification-first feature development.
+**Summary:** The Malaphors-inator project is active and specification-driven development is in place with Speckit 2.0.0. The repository includes a working GUI, CLI, persistent data workflows, and a backlog of remaining enhancements. The framework remains ready for specification-first feature development, while the public-facing brand intentionally uses “Malaphors-inator” and the internal file/repository names remain historically stable.

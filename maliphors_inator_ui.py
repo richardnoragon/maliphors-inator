@@ -1,4 +1,5 @@
-"""GUI module for the Malaphor Generator."""
+"""GUI module for maliphors-inator."""
+import asyncio
 import json
 from pathlib import Path
 
@@ -7,11 +8,11 @@ import tkinter.messagebox
 import tkinter.filedialog
 import tkinter.ttk as ttk
 
-from malaphor_logic import MalaphorGenerator
+from maliphors_inator_logic import MalaphorGenerator
 
 
-class MalaphorApp:
-    """GUI application for the Malaphor Generator."""
+class MaliphorsInatorApp:
+    """GUI application for maliphors-inator."""
 
     MAX_HISTORY_LINES = 1000  # Maximum number of lines to keep in history
     HISTORY_CLEANUP_TRIGGER = 1200  # When to trigger cleanup
@@ -22,7 +23,7 @@ class MalaphorApp:
         self.generator = MalaphorGenerator()
         self.root = root or tk.Tk()
         if not root:
-            self.root.title("Malaphor Generator")
+            self.root.title("maliphors-inator")
         self.tooltips = []  # Store tooltip references
         self.dialogs = {}  # Cache dialog references
         self.style = ttk.Style(self.root)
@@ -31,11 +32,18 @@ class MalaphorApp:
         self.setup_gui()
         self.update_history()
         self._apply_theme(self.root)
+        if self.generator.load_errors:
+            names = ", ".join(path.name for path in self.generator.load_errors)
+            self.root.after_idle(lambda: tkinter.messagebox.showwarning(
+                "Saved data needs recovery",
+                f"Could not fully load: {names}. These files will not be overwritten. "
+                "Close the app, restore a backup, and restart. See USER_GUIDE.md: Files and backups.",
+                parent=self.root))
 
     def setup_gui(self):
         """Set up the GUI components."""
         # Configure window
-        self.root.geometry("600x500")
+        self.root.geometry("900x740")
         self.root.configure(padx=20, pady=20)
 
         self.language_var = tk.StringVar(value="all")
@@ -289,12 +297,19 @@ class MalaphorApp:
         power_user_button.pack(side=tk.LEFT, padx=5)
         self._create_tooltip(power_user_button, "Advanced generation, sharing, and profile tools")
 
+        # Wrap controls so every action fits in the startup window.
+        for frame in (button_frame_top, button_frame_middle, button_frame_bottom, button_frame_advanced):
+            for widget in frame.winfo_children():
+                widget.pack_forget()
+            for index, widget in enumerate(frame.winfo_children()):
+                widget.grid(row=index // 4, column=index % 4, padx=5, pady=3)
+
         # Create labels
         self.sentence_label = tk.Label(
             main_frame,
             text="Click 'Generate' to create a malaphor",
             wraplength=400,
-            height=3
+            height=5
         )
         self.sentence_label.pack(pady=20)
 
@@ -336,9 +351,9 @@ class MalaphorApp:
         tooltip.withdraw()
 
         def enter(event):
-            x, y, _, _ = widget.bbox("insert")
-            x += widget.winfo_rootx() + 25
-            y += widget.winfo_rooty() + 25
+            # Buttons and listboxes have no text insertion cursor.
+            x = widget.winfo_rootx() + 25
+            y = widget.winfo_rooty() + widget.winfo_height() + 5
             tooltip.wm_geometry(f"+{x}+{y}")
             tooltip.deiconify()
 
@@ -353,23 +368,20 @@ class MalaphorApp:
         return tooltip
 
     def _load_ui_preferences(self):
-        """Load UI preferences from disk."""
+        """Load preferences without letting a malformed file prevent startup."""
         try:
-            if self.UI_PREFERENCES_FILE.exists():
-                return json.loads(self.UI_PREFERENCES_FILE.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
+            data = json.loads(self.UI_PREFERENCES_FILE.read_text(encoding="utf-8"))
+            if not isinstance(data, dict) or data.get("theme", "light") not in ("light", "dark"):
+                raise ValueError("Expected a light or dark theme preference")
+            return data
+        except FileNotFoundError:
             pass
+        except (OSError, ValueError, TypeError) as exc:
+            self.generator._protect_unreadable_file(self.UI_PREFERENCES_FILE, exc)
         return {"theme": "light"}
 
     def _save_ui_preferences(self):
-        """Persist UI preferences to disk."""
-        try:
-            self.UI_PREFERENCES_FILE.write_text(
-                json.dumps({"theme": self.theme_mode}, indent=2),
-                encoding="utf-8",
-            )
-        except OSError:
-            pass
+        return self.generator._write_json(self.UI_PREFERENCES_FILE, {"theme": self.theme_mode})
 
     def _theme_palette(self):
         """Return palette values for the active theme."""
@@ -918,12 +930,14 @@ class MalaphorApp:
                 )
                 return
 
-            if self.generator.add_new_proverb(beginning, ending):
+            if asyncio.run(self.generator.add_new_proverb(beginning, ending)):
                 tkinter.messagebox.showinfo(
                     "Success",
                     "New proverb added successfully!"
                 )
                 dialog.destroy()
+            else:
+                tkinter.messagebox.showerror("Save failed", "Could not save malaphors.json; the phrase was not added.")
 
         button_frame = tk.Frame(dialog)
         button_frame.pack(pady=20)
@@ -946,7 +960,11 @@ class MalaphorApp:
         """Generate and display a new malaphor."""
         selected_language = self.language_var.get().strip().lower()
         language = None if selected_language in {"", "all", "any"} else selected_language
-        result = self.generator.generate_malaphor(language=language)
+        try:
+            result = self.generator.generate_malaphor(language=language)
+        except (ValueError, OSError) as exc:
+            tkinter.messagebox.showerror("Generation failed", str(exc), parent=self.root)
+            return
         sentence = result["malaphor"]
         self.sentence_label.config(
             text=(f"{sentence}\n\n"
@@ -972,8 +990,10 @@ class MalaphorApp:
         current_malaphor = self.sentence_label.cget("text")
         default_text = "Click 'Generate' to create a malaphor"
         if (current_malaphor and current_malaphor != default_text):
-            self.generator.add_to_favorites(current_malaphor)
-            tkinter.messagebox.showinfo("Success", "Added to favorites!")
+            if self.generator.add_to_favorites(current_malaphor) is False:
+                tkinter.messagebox.showerror("Save failed", "Could not save favorites.json. Check the destination and permissions.", parent=self.root)
+            else:
+                tkinter.messagebox.showinfo("Success", "Added to favorites!")
 
     def update_history(self):
         """Update the history display with malaphors and their sources."""
@@ -1008,7 +1028,24 @@ class MalaphorApp:
         )
 
         if filepath:
-            self.generator.import_malaphors(filepath)
+            imported = asyncio.run(self.generator.import_malaphors(filepath))
+            error = getattr(self.generator, "last_import_error", None)
+            if imported:
+                tkinter.messagebox.showinfo("Import complete", "New phrases imported.", parent=self.root)
+            elif error:
+                tkinter.messagebox.showerror("Import failed", error, parent=self.root)
+            else:
+                tkinter.messagebox.showinfo("Import complete", "No new phrases to import.", parent=self.root)
+
+    def _export_file(self, operation, filepath):
+        """Report the result of a desktop export."""
+        if asyncio.run(operation):
+            tkinter.messagebox.showinfo("Export complete", f"Saved to {filepath}", parent=self.root)
+        else:
+            tkinter.messagebox.showerror(
+                "Export failed", f"Could not write {filepath}. Check the destination and permissions.",
+                parent=self.root,
+            )
 
     def export_originals_dialog(self):
         """Show dialog for exporting original malaphors."""
@@ -1028,9 +1065,9 @@ class MalaphorApp:
 
         if filepath:
             if filepath.endswith('.txt'):
-                self.generator.export_malaphors_as_text(filepath)
+                self._export_file(self.generator.export_malaphors_as_text(filepath), filepath)
             else:
-                self.generator.export_malaphors(filepath)
+                self._export_file(self.generator.export_malaphors(filepath), filepath)
 
     def export_generated_dialog(self):
         """Show dialog for exporting generated malaphors."""
@@ -1050,9 +1087,9 @@ class MalaphorApp:
 
         if filepath:
             if filepath.endswith('.txt'):
-                self.generator.export_history_as_text(filepath)
+                self._export_file(self.generator.export_history_as_text(filepath), filepath)
             else:
-                self.generator.export_history(filepath)
+                self._export_file(self.generator.export_history(filepath), filepath)
 
     def export_favorites_dialog(self):
         """Show dialog for exporting favorites."""
@@ -1072,9 +1109,9 @@ class MalaphorApp:
 
         if filepath:
             if filepath.endswith('.txt'):
-                self.generator.export_favorites_as_text(filepath)
+                self._export_file(self.generator.export_favorites_as_text(filepath), filepath)
             else:
-                self.generator.export_favorites(filepath)
+                self._export_file(self.generator.export_favorites(filepath), filepath)
 
     def show_manage_phrases_dialog(self):
         """Show dialog for managing (viewing/editing/deleting) phrases."""
@@ -1175,7 +1212,7 @@ class MalaphorApp:
                     )
                     return
 
-                if self.generator.edit_proverb(index, beginning, ending):
+                if asyncio.run(self.generator.edit_proverb(index, beginning, ending)):
                     # Update listbox
                     phrases_listbox.delete(index)
                     phrases_listbox.insert(index, f"{beginning} {ending}")
@@ -1183,6 +1220,9 @@ class MalaphorApp:
                         "Success",
                         "Phrase updated successfully!"
                     )
+                    proverbs[:] = self.generator.proverbs
+                else:
+                    tkinter.messagebox.showerror("Save failed", "Could not save malaphors.json; the phrase was kept.")
             except IndexError:
                 tkinter.messagebox.showwarning(
                     "Selection Error",
@@ -1196,7 +1236,7 @@ class MalaphorApp:
                     "Confirm Delete",
                     "Are you sure you want to delete this phrase?"
                 ):
-                    if self.generator.delete_proverb(index):
+                    if asyncio.run(self.generator.delete_proverb(index)):
                         phrases_listbox.delete(index)
                         beginning_entry.delete(0, tk.END)
                         ending_entry.delete(0, tk.END)
@@ -1204,6 +1244,9 @@ class MalaphorApp:
                             "Success",
                             "Phrase deleted successfully!"
                         )
+                        proverbs[:] = self.generator.proverbs
+                    else:
+                        tkinter.messagebox.showerror("Save failed", "Could not save malaphors.json; the phrase was kept.")
             except IndexError:
                 tkinter.messagebox.showwarning(
                     "Selection Error",
@@ -1418,7 +1461,8 @@ class MalaphorApp:
                         "Confirm Delete",
                         "Are you sure you want to delete this entry?"
                     ):
-                        self.generator.delete_from_history(index)
+                        if not self.generator.delete_from_history(index):
+                            raise OSError("Could not save history.json; the entry was kept.")
                         update_history_list(search_var.get())
             except Exception as e:
                 tkinter.messagebox.showerror(
@@ -1500,14 +1544,19 @@ class MalaphorApp:
         scrollbar.config(command=favorites_listbox.yview)
         self._create_tooltip(favorites_listbox, "List of favorite malaphors. Click one to manage.")
 
+        visible_indices = []
+
         def update_favorites_list(search_text=''):
             favorites_listbox.delete(0, tk.END)
+            visible_indices.clear()
             if search_text:
                 items = self.generator.search_favorites(search_text)
                 for i, item in items:
+                    visible_indices.append(i)
                     favorites_listbox.insert(tk.END, item)
             else:
-                for item in self.generator.favorites:
+                for i, item in enumerate(self.generator.favorites):
+                    visible_indices.append(i)
                     favorites_listbox.insert(tk.END, item)
 
         def on_search(*args):
@@ -1519,15 +1568,14 @@ class MalaphorApp:
             try:
                 sel = favorites_listbox.curselection()
                 if sel:
-                    index = sel[0]
+                    index = visible_indices[sel[0]]
                     if tkinter.messagebox.askyesno(
                         "Confirm Delete",
                         "Are you sure you want to delete this favorite?"
                     ):
-                        self.generator.delete_from_favorites(index)
+                        if not self.generator.delete_from_favorites(index):
+                            raise OSError("Could not save favorites.json; the favorite was kept.")
                         update_favorites_list(search_var.get())
-                        # Save changes
-                        self.generator.save_favorites()
             except Exception as e:
                 tkinter.messagebox.showerror(
                     "Error",
@@ -1550,8 +1598,12 @@ class MalaphorApp:
             command=dialog.destroy
         ).pack(side=tk.LEFT, padx=5)
 
+        tk.Button(button_frame, text="Export Favorites",
+                  command=self.export_favorites_dialog).pack(side=tk.LEFT, padx=5)
+
         # Initial population
         update_favorites_list()
+        return dialog
 
     # ========== PHASE 2: POLISH & EXPLORATION UI FEATURES ==========
 
@@ -1577,7 +1629,7 @@ class MalaphorApp:
             self.update_history()
             tkinter.messagebox.showinfo("Undo", "Last action restored.")
         else:
-            tkinter.messagebox.showwarning("Undo", "Nothing to undo.")
+            tkinter.messagebox.showwarning("Undo", "Could not save the restored data." if self.generator.undo_stack.can_undo() else "Nothing to undo.")
 
     def redo_last_action(self):
         """Redo the most recent undone action."""
@@ -1585,7 +1637,7 @@ class MalaphorApp:
             self.update_history()
             tkinter.messagebox.showinfo("Redo", "Action restored.")
         else:
-            tkinter.messagebox.showwarning("Redo", "Nothing to redo.")
+            tkinter.messagebox.showwarning("Redo", "Could not save the restored data." if self.generator.undo_stack.can_redo() else "Nothing to redo.")
 
     def export_current_malaphor_image(self):
         """Export the current malaphor as a PNG or SVG image."""
@@ -1788,7 +1840,7 @@ class MalaphorApp:
             tk.Label(dialog, text=msg, wraplength=400).pack(padx=10, pady=10)
 
             def add_anyway():
-                self.generator.add_new_proverb(beginning, ending)
+                asyncio.run(self.generator.add_new_proverb(beginning, ending))
                 dialog.destroy()
 
             button_frame = tk.Frame(dialog)
@@ -1796,7 +1848,7 @@ class MalaphorApp:
             tk.Button(button_frame, text="Add Anyway", command=add_anyway).pack(side=tk.LEFT, padx=5)
             tk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
         else:
-            self.generator.add_new_proverb(beginning, ending)
+            asyncio.run(self.generator.add_new_proverb(beginning, ending))
             tkinter.messagebox.showinfo("Success", "Phrase added successfully!")
 
     # FEAT-8: Batch Phrase Import with Auto-Splitting
@@ -1909,12 +1961,16 @@ class MalaphorApp:
     def run(self):
         """Start the application."""
         self.setup_keyboard_shortcuts()
-        self.root.mainloop()
+        try:
+            self.root.mainloop()
+        finally:
+            self.close()
 
     def close(self):
         """Clean up resources."""
         try:
             self.generator.stop_auto_save()
+            self.generator._run_auto_save()
         except Exception:
             pass
         self._cleanup_tooltips()
@@ -1933,7 +1989,7 @@ class MalaphorApp:
     def show_source_management_dialog(self):
         """Show dialog for managing phrase sources."""
         dialog = tk.Toplevel(self.root)
-        dialog.title("Manage Phrase Sources - Malaphors")
+        dialog.title("Manage Phrase Sources - maliphors-inator")
         dialog.geometry("700x500")
 
         # Preset sources
@@ -2039,7 +2095,7 @@ class MalaphorApp:
     def show_database_validation_dialog(self):
         """Show dialog for database validation and deduplication."""
         dialog = tk.Toplevel(self.root)
-        dialog.title("Validate & Clean Database - Malaphors")
+        dialog.title("Validate & Clean Database - maliphors-inator")
         dialog.geometry("800x600")
 
         # Title

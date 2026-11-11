@@ -74,14 +74,14 @@ class LogManager(QtWidgets.QMainWindow):
         uic.loadUi(ui_file, self)
         
         # Set up logging
-        self.logger = logging.getLogger('malaphor_logger')
+        self.logger = logging.getLogger('maliphors_inator')
         self.logger.setLevel(logging.DEBUG)
         
         # Create and add Qt handler
         self.qt_handler = QtHandler(self.logTextEdit)
         self.qt_handler.setLevel(logging.DEBUG)
         formatter = logging.Formatter(
-            '%(asctime)s - %(levelname)s - %(message)s'
+            '%(asctime)s [%(levelname)s] %(message)s'
         )
         self.qt_handler.setFormatter(formatter)
         self.logger.addHandler(self.qt_handler)
@@ -107,7 +107,7 @@ class LogManager(QtWidgets.QMainWindow):
     def export_logs(self):
         """Export logs to a file."""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        default_filename = f"malaphor_log_{timestamp}.txt"
+        default_filename = f"maliphors_inator_log_{timestamp}.txt"
         
         filepath, _ = QtWidgets.QFileDialog.getSaveFileName(
             self,
@@ -117,12 +117,13 @@ class LogManager(QtWidgets.QMainWindow):
         )
         
         if filepath:
-            asyncio.create_task(self.export_logs_async(filepath))
+            self.qt_handler.flush_buffer()
+            asyncio.run(self.export_logs_async(filepath))
             
     def clear_logs(self):
         """Clear the log display."""
+        self.qt_handler.buffer.clear()
         self.logTextEdit.clear()
-        self.logger.info("Logs cleared")
         
     def closeEvent(self, event):
         """Handle window close event."""
@@ -135,7 +136,7 @@ class LogManager(QtWidgets.QMainWindow):
 
 def log_message(message, level=logging.INFO):
     """Log a message using the application logger."""
-    logger = logging.getLogger('malaphor_logger')
+    logger = logging.getLogger('maliphors_inator')
     logger.log(level, message)
 
 

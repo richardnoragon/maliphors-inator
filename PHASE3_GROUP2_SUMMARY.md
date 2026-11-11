@@ -1,5 +1,7 @@
 # Phase 3 - Group 2 Implementation Summary
 
+> Historical implementation/framework record. Current application status is pre-alpha, with alpha readiness in progress; see [ROADMAP.md](ROADMAP.md#alpha-readiness) and [stage definitions](alpha.md). Completion and version labels below refer to the recorded work.
+
 **Date:** 2026-09-10  
 **Status:** ✅ COMPLETE  
 **Issues:** #14 (FEAT-11), #16 (FEAT-4)  

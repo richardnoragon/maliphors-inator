@@ -4,7 +4,7 @@ setlocal EnableDelayedExpansion
 :: Set UTF-8 encoding
 chcp 65001 > nul
 
-echo === Malaphor Generator Test Runner ===
+echo === maliphors-inator Test Runner ===
 echo.
 
 :: Check for Python

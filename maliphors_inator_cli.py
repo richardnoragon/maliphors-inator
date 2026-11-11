@@ -1,17 +1,18 @@
-"""Command-line entrypoints for the Malaphor Generator."""
+"""Command-line entrypoints for maliphors-inator."""
 
 import argparse
 import asyncio
 import json
+import sys
 from pathlib import Path
 from typing import Iterable, List
 
-from malaphor_logic import MalaphorGenerator
+from maliphors_inator_logic import MalaphorGenerator
 
 
 def build_parser() -> argparse.ArgumentParser:
     """Build the command-line argument parser."""
-    parser = argparse.ArgumentParser(description="Malaphor Generator CLI")
+    parser = argparse.ArgumentParser(description="maliphors-inator CLI")
     parser.add_argument("--generate", action="store_true", help="Generate malaphors and print them")
     parser.add_argument("--count", type=int, default=1, help="Number of malaphors to generate")
     parser.add_argument("--category", help="Optional tag/category filter for generation")
@@ -64,6 +65,14 @@ def _print_search(results: Iterable[dict], output_format: str) -> None:
 def main(argv: List[str] | None = None) -> int:
     """Run a CLI command and return an exit code."""
     args = build_parser().parse_args(argv)
+    try:
+        return _run_command(args)
+    except (ValueError, OSError) as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+
+
+def _run_command(args) -> int:
     generator = MalaphorGenerator()
 
     if args.search:
@@ -98,6 +107,9 @@ def main(argv: List[str] | None = None) -> int:
                 results.append(generator.generate_weighted_random(smart_mode=True))
         elif count > 1:
             results = generator.generate_multiple(count=count, language=args.language)
+            for result in results:
+                if not generator._save_history_entry(result):
+                    raise OSError("Could not save history.json. Check the destination and permissions.")
         else:
             results = [generator.generate_malaphor(language=args.language)]
         _print_generated(results, args.output_format)

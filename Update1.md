@@ -1,7 +1,9 @@
+> Historical improvement suggestions. Current status and priorities live in [ROADMAP.md](ROADMAP.md#alpha-readiness); [alpha.md](alpha.md) defines readiness. This checklist is not the alpha acceptance checklist.
+
 Okay, here are the suggestions converted into a Markdown checklist. You can save this as a `.md` file (e.g., `TODO.md` or `IMPROVEMENTS.md`) in your project repository.
 
 ```markdown
-# Project Improvement Checklist: Malaphor Generator
+# Project Improvement Checklist: Malaphors-inator
 
 This checklist covers suggestions for improving the README documentation and potential enhancements for the project functionality.
 
@@ -46,4 +48,4 @@ This checklist covers suggestions for improving the README documentation and pot
 
 ```
 
-You can now use this checklist to track progress on improving your Malaphor Generator project!
+You can now use this checklist to track progress on improving your Malaphors-inator project!

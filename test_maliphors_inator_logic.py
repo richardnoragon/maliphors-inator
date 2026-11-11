@@ -7,12 +7,12 @@ from collections import deque
 
 import pytest
 
-from malaphor_logic import MalaphorGenerator
+from maliphors_inator_logic import MalaphorGenerator
 
 
 @pytest.fixture
 def sample_generator():
-    generator = MalaphorGenerator.__new__(MalaphorGenerator)
+    generator = MalaphorGenerator()
     generator.proverbs = [
         {
             "original": "A bird in the hand",
@@ -32,7 +32,7 @@ def sample_generator():
     ]
     generator.history = []
     generator.favorites = []
-    generator.logger = logging.getLogger("test_malaphor_logic")
+    generator.logger = logging.getLogger("test_maliphors_inator_logic")
     # Phase 2 attributes
     generator.recent_searches = deque(maxlen=10)
     generator.phrase_pair_ratings = {}
@@ -366,7 +366,7 @@ def test_phrase_similarity_detection_finds_similar(sample_generator):
 
 def test_phrase_similarity_detection_returns_empty_for_unique():
     """Test that completely unique phrases don't match."""
-    generator = MalaphorGenerator.__new__(MalaphorGenerator)
+    generator = MalaphorGenerator()
     generator.proverbs = [
         {"original": "alpha bravo charlie", "beginning": "alpha", "ending": "bravo charlie"},
     ]
@@ -378,7 +378,7 @@ def test_phrase_similarity_detection_returns_empty_for_unique():
 
 def test_set_similarity_threshold():
     """Test adjusting similarity threshold."""
-    generator = MalaphorGenerator.__new__(MalaphorGenerator)
+    generator = MalaphorGenerator()
     generator.similarity_threshold = 0.80
 
     generator.set_similarity_threshold(0.90)
@@ -392,7 +392,7 @@ def test_set_similarity_threshold():
 # UX-9: Copy Generation Stats Formatting Tests
 def test_format_malaphor_plain():
     """Test plain text formatting."""
-    generator = MalaphorGenerator.__new__(MalaphorGenerator)
+    generator = MalaphorGenerator()
     result = generator.format_malaphor_for_copy("Test malaphor", "Source 1", "Source 2", "plain")
     assert "Malaphor: Test malaphor" in result
     assert "Source 1" in result
@@ -401,7 +401,7 @@ def test_format_malaphor_plain():
 
 def test_format_malaphor_markdown():
     """Test markdown formatting."""
-    generator = MalaphorGenerator.__new__(MalaphorGenerator)
+    generator = MalaphorGenerator()
     result = generator.format_malaphor_for_copy("Test", "Src1", "Src2", "markdown")
     assert "**Malaphor:**" in result
     assert "**Sources:**" in result
@@ -410,7 +410,7 @@ def test_format_malaphor_markdown():
 
 def test_format_malaphor_json():
     """Test JSON formatting."""
-    generator = MalaphorGenerator.__new__(MalaphorGenerator)
+    generator = MalaphorGenerator()
     result = generator.format_malaphor_for_copy("Test", "Src1", "Src2", "json")
     data = json.loads(result)
     assert data["malaphor"] == "Test"
@@ -436,7 +436,7 @@ def test_get_recent_searches_order(sample_generator):
 
 def test_recent_searches_deque_max_size():
     """Test that recent searches respects max size of 10."""
-    generator = MalaphorGenerator.__new__(MalaphorGenerator)
+    generator = MalaphorGenerator()
     generator.recent_searches = __import__('collections').deque(maxlen=10)
 
     for i in range(15):
@@ -486,7 +486,7 @@ def test_rate_malaphor_stores_rating(sample_generator, tmp_path, monkeypatch):
 
 def test_get_pair_rating_calculates_average():
     """Test that pair ratings return average."""
-    generator = MalaphorGenerator.__new__(MalaphorGenerator)
+    generator = MalaphorGenerator()
     generator.phrase_pair_ratings = {"A|B": [4, 5, 3]}
 
     rating = generator.get_pair_rating("A", "B")
@@ -502,7 +502,7 @@ def test_generate_weighted_random_falls_back_to_regular(sample_generator):
 
 def test_generate_weighted_random_respects_smart_mode_toggle():
     """Test smart mode toggle works."""
-    generator = MalaphorGenerator.__new__(MalaphorGenerator)
+    generator = MalaphorGenerator()
     generator.proverbs = [
         {"original": "A", "beginning": "A", "ending": "B"},
         {"original": "C", "beginning": "C", "ending": "D"},
@@ -527,7 +527,7 @@ def test_parse_batch_phrases_single_phrase(sample_generator):
 
 def test_parse_batch_phrases_multiple():
     """Test parsing multiple phrases."""
-    generator = MalaphorGenerator.__new__(MalaphorGenerator)
+    generator = MalaphorGenerator()
     generator.smart_split_phrase = lambda x: (x.split()[0], " ".join(x.split()[1:]))
 
     text = "First phrase\nSecond phrase"
@@ -537,7 +537,7 @@ def test_parse_batch_phrases_multiple():
 
 def test_parse_batch_phrases_ignores_empty_lines():
     """Test that empty lines are ignored."""
-    generator = MalaphorGenerator.__new__(MalaphorGenerator)
+    generator = MalaphorGenerator()
     generator.smart_split_phrase = lambda x: (x.split()[0], " ".join(x.split()[1:]))
 
     text = "First\n\n\nSecond"
@@ -1081,14 +1081,14 @@ def test_generate_from_template_uses_saved_pattern(sample_generator):
 
 def test_generate_rhyming_random_prefers_rhyming_pairs():
     """Test rhyming generation selects a pair with a shared rhyme key."""
-    generator = MalaphorGenerator.__new__(MalaphorGenerator)
+    generator = MalaphorGenerator()
     generator.proverbs = [
         {"original": "Time to shine", "beginning": "Time to", "ending": "shine"},
         {"original": "Climb the brine", "beginning": "Climb the", "ending": "brine"},
     ]
     generator.history = []
     generator.favorites = []
-    generator.logger = logging.getLogger("test_malaphor_logic")
+    generator.logger = logging.getLogger("test_maliphors_inator_logic")
     generator.recent_searches = deque(maxlen=10)
     generator.phrase_pair_ratings = {}
     generator.similarity_threshold = 0.80
@@ -1201,7 +1201,7 @@ def test_benchmark_search_latency_reports_stats(sample_generator):
 def test_undo_redo_stack_tracks_state(sample_generator):
     """Test the undo/redo stack records and restores state."""
     generator = sample_generator
-    generator.undo_stack = __import__('malaphor_logic').UndoRedoStack(max_size=10)
+    generator.undo_stack = __import__('maliphors_inator_logic').UndoRedoStack(max_size=10)
     before = list(generator.proverbs)
 
     generator.proverbs.pop(0)

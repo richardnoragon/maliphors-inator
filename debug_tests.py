@@ -36,8 +36,8 @@ def check_test_files():
     """Verify all test files are present and importable."""
     logger = logging.getLogger(__name__)
     test_files = [
-        'test_malaphor_generator.py',
-        'test_malaphor_ui.py',
+        'test_maliphors_inator_logic.py',
+        'test_maliphors_inator_ui.py',
         'test_logging.py',
         'test_config.py'
     ]

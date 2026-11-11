@@ -1,10 +1,10 @@
-Write-Host "Running Malaphor Generator Tests" -ForegroundColor Green
+Write-Host "Running maliphors-inator Tests" -ForegroundColor Green
 Write-Host "==============================" -ForegroundColor Green
 Write-Host ""
 
 $testFiles = @(
-    "test_malaphor_generator.py",
-    "test_malaphor_ui.py",
+    "test_maliphors_inator_logic.py",
+    "test_maliphors_inator_ui.py",
     "test_logging.py"
 )
 

@@ -3,14 +3,14 @@
     "version": "2.0.0",
     "framework": "github-spec-kit",
     "initialized": "2026-09-07T00:00:00Z",
-    "last_updated": "2026-09-07T00:00:00Z"
+    "last_updated": "2026-10-10T00:00:00Z"
   },
   "project": {
-    "name": "malaphors-rs",
+    "name": "maliphors-inator",
     "description": "A playful tool for creating and exploring creative blends of phrases, idioms, and proverbs",
     "language": "Python",
     "python_version": "3.10+",
-    "repository": "https://github.com/richardnoragon/malaphors-rs.git"
+    "repository": "https://github.com/richardnoragon/maliphors-inator.git"
   },
   "capabilities": {
     "agents": [

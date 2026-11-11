@@ -1,4 +1,7 @@
 import json
+import os
+import stat
+import tempfile
 import random
 import tkinter.messagebox
 import re
@@ -14,6 +17,33 @@ import logging
 from typing import List, Dict, Optional, Tuple, Set, Any
 from collections import defaultdict, deque
 from copy import deepcopy
+
+
+def atomic_write_json(filepath, data):
+    """Replace one JSON file only after serialization and a flushed write succeed."""
+    path = Path(filepath).resolve()
+    content = json.dumps(data, indent=2, ensure_ascii=False)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    mode = None
+    if path.exists():
+        mode = stat.S_IMODE(path.stat().st_mode)
+        # Atomic replacement must still respect an explicitly read-only target.
+        if not mode & 0o222 or not os.access(path, os.W_OK):
+            raise PermissionError(f"Cannot write {path}")
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent,
+                                         prefix=f".{path.name}.", suffix=".tmp", delete=False) as stream:
+            temporary = Path(stream.name)
+            stream.write(content)
+            stream.flush()
+            os.fsync(stream.fileno())
+        if mode is not None:
+            temporary.chmod(mode)
+        os.replace(temporary, path)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
 
 
 class PhraseIndex:
@@ -139,10 +169,12 @@ class MalaphorGenerator:
 
     def __init__(self):
         """Initialize the MalaphorGenerator with phrases from JSON file."""
+        self._persistence_lock = threading.RLock()
+        self.load_errors = {}
         self.proverbs = []
         self.history = []
         self.favorites = []
-        self.logger = logging.getLogger('malaphor_logger')
+        self.logger = logging.getLogger('maliphors_inator')
         self.recent_searches = deque(maxlen=10)  # Track last 10 searches
         self.phrase_pair_ratings = {}  # Track ratings for phrase pairs (FEAT-3)
         self.similarity_threshold = 0.80  # 80% similarity threshold (FEAT-7)
@@ -193,17 +225,25 @@ class MalaphorGenerator:
                 break
             self._run_auto_save()
 
+    def _protect_unreadable_file(self, filepath, error):
+        path = Path(filepath).resolve()
+        self.load_errors[path] = str(error)
+        self.logger.error("Cannot load %s: %s. Writes are blocked; restore a backup and restart.", path, error)
+
+    def _write_json(self, filepath, data):
+        with self._persistence_lock:
+            try:
+                if Path(filepath).resolve() in self.load_errors:
+                    raise OSError(f"{filepath} could not be loaded. Restore a backup and restart before saving.")
+                atomic_write_json(filepath, data)
+                return True
+            except (OSError, ValueError, TypeError) as exc:
+                self.logger.error("Could not save %s: %s", filepath, exc)
+                return False
+
     def _save_favorites_sync(self) -> bool:
-        """Persist favorites to disk in a regular synchronous file write."""
-        try:
-            Path("favorites.json").write_text(
-                json.dumps({"favorites": self.favorites}, indent=2, ensure_ascii=False),
-                encoding="utf-8",
-            )
-            return True
-        except OSError as exc:
-            self.logger.error(f"Error saving favorites to favorites.json: {exc}")
-            return False
+        with self._persistence_lock:
+            return self._write_json("favorites.json", {"favorites": self.favorites})
 
     def _load_data(self) -> None:
         """Load malaphors, favorites, and history from JSON files."""
@@ -215,87 +255,77 @@ class MalaphorGenerator:
             raise
 
     def _load_history_from_file(self) -> List[Dict[str, str]]:
-        """Load persisted history from history.json if present."""
-        history_path = Path("history.json")
+        """Load valid records, protecting unreadable/partly invalid files from overwrite."""
+        path = Path("history.json")
         try:
-            if not history_path.exists():
-                return []
-
-            with history_path.open("r", encoding="utf-8") as file:
-                data = json.load(file)
-
-            if isinstance(data, dict):
-                entries = data.get("history", [])
-            elif isinstance(data, list):
-                entries = data
-            else:
-                return []
-
-            normalized_entries = []
+            data = json.loads(path.read_text(encoding="utf-8"))
+            entries = data.get("history") if isinstance(data, dict) else data
+            if not isinstance(entries, list):
+                raise ValueError("Expected a history list")
+            normalized = []
             for item in entries:
-                if not isinstance(item, dict):
+                if not isinstance(item, dict) or any(
+                    not isinstance(item.get(key), str) or not item[key]
+                    for key in ("malaphor", "source1", "source2")
+                ) or (item.get("timestamp") is not None and not isinstance(item["timestamp"], str)):
+                    self._protect_unreadable_file(path, "Invalid history record")
                     continue
-                normalized = {
-                    "malaphor": item.get("malaphor", ""),
-                    "source1": item.get("source1", ""),
-                    "source2": item.get("source2", ""),
-                    "timestamp": item.get("timestamp") or datetime.now(timezone.utc).isoformat(),
-                }
-                if normalized["malaphor"] and normalized["source1"] and normalized["source2"]:
-                    normalized_entries.append(normalized)
-
-            return normalized_entries
-        except (FileNotFoundError, json.JSONDecodeError, OSError, TypeError, ValueError):
-            self.logger.warning("Unable to load history from history.json. Starting with an empty history.")
+                record = dict(item)
+                record["timestamp"] = item.get("timestamp") or datetime.now(timezone.utc).isoformat()
+                normalized.append(record)
+            return normalized
+        except FileNotFoundError:
+            return []
+        except (OSError, ValueError, TypeError) as exc:
+            self._protect_unreadable_file(path, exc)
             return []
 
     def _save_history_entry(self, entry: Optional[Dict[str, str]] = None) -> bool:
-        """Persist the current history list to history.json."""
-        try:
+        """Commit new history only after its file has been saved."""
+        with self._persistence_lock:
+            updated = list(self.history)
             if entry is not None:
-                normalized_entry = {
-                    "malaphor": entry.get("malaphor", ""),
-                    "source1": entry.get("source1", ""),
-                    "source2": entry.get("source2", ""),
-                    "timestamp": entry.get("timestamp") or datetime.now(timezone.utc).isoformat(),
-                }
-                language = entry.get("language")
-                if language is not None:
-                    normalized_entry["language"] = str(language).lower()
-                if normalized_entry["malaphor"] and normalized_entry["source1"] and normalized_entry["source2"]:
-                    self.history.append(normalized_entry)
-
-            history_path = Path("history.json")
-            history_path.parent.mkdir(parents=True, exist_ok=True)
-            with history_path.open("w", encoding="utf-8") as file:
-                json.dump(self.history, file, ensure_ascii=False, indent=2)
+                record = dict(entry)
+                record["timestamp"] = entry.get("timestamp") or datetime.now(timezone.utc).isoformat()
+                if not all(record.get(key) for key in ("malaphor", "source1", "source2")):
+                    return False
+                updated.append(record)
+            if not self._write_json("history.json", updated):
+                return False
+            self.history = updated
             return True
-        except OSError as e:
-            self.logger.error(f"Error saving history to history.json: {str(e)}")
-            return False
 
     def _load_malaphors(self) -> None:
-        """Load malaphors from the JSON file."""
         try:
-            with open("malaphors.json", "r", encoding='utf-8') as file:
-                data = json.load(file)
-                self.proverbs = data.get("proverbs", [])
+            data = json.loads(Path("malaphors.json").read_text(encoding="utf-8"))
+            phrases = data.get("proverbs") if isinstance(data, dict) else None
+            if not isinstance(phrases, list) or any(
+                not isinstance(item, dict)
+                or any(not isinstance(item.get(key), str) or not item[key].strip()
+                       for key in ("original", "beginning", "ending"))
+                or any(key in item and not isinstance(item[key], str) for key in ("language", "source"))
+                or ("tags" in item and (not isinstance(item["tags"], list)
+                    or any(not isinstance(tag, str) for tag in item["tags"])))
+                for item in phrases
+            ):
+                raise ValueError("Expected a proverbs list with original, beginning, and ending strings")
+            self.proverbs = phrases
         except FileNotFoundError:
             self.logger.warning("malaphors.json not found; starting with an empty collection.")
-            self.proverbs = []
-        except json.JSONDecodeError:
-            self.logger.warning("Invalid JSON format in malaphors.json; starting with an empty collection.")
-            self.proverbs = []
+        except (OSError, ValueError, TypeError) as exc:
+            self._protect_unreadable_file("malaphors.json", exc)
 
     def _load_favorites(self) -> None:
-        """Load favorites from the JSON file."""
         try:
-            with open("favorites.json", "r", encoding='utf-8') as file:
-                data = json.load(file)
-                self.favorites = data.get("favorites", [])
-        except (FileNotFoundError, json.JSONDecodeError):
-            # It's okay if the file doesn't exist yet
+            data = json.loads(Path("favorites.json").read_text(encoding="utf-8"))
+            favorites = data.get("favorites") if isinstance(data, dict) else None
+            if not isinstance(favorites, list) or any(not isinstance(item, str) for item in favorites):
+                raise ValueError("Expected a favorites list of strings")
+            self.favorites = favorites
+        except FileNotFoundError:
             pass
+        except (OSError, ValueError, TypeError) as exc:
+            self._protect_unreadable_file("favorites.json", exc)
 
     @lru_cache(maxsize=128)
     def _get_split_points(self, phrase: str) -> Tuple[str, str]:
@@ -330,24 +360,8 @@ class MalaphorGenerator:
         return ' '.join(words[:mid]), ' '.join(words[mid:])
 
     async def _save_to_file(self, filepath: str, data: dict) -> bool:
-        """Asynchronously save data to a JSON file."""
-        try:
-            # Create parent directories if they don't exist
-            Path(filepath).parent.mkdir(parents=True, exist_ok=True)
-
-            # Write data asynchronously using asyncio
-            loop = asyncio.get_event_loop()
-            await loop.run_in_executor(
-                None,
-                lambda: Path(filepath).write_text(
-                    json.dumps(data, indent=2),
-                    encoding='utf-8'
-                )
-            )
-            return True
-        except Exception as e:
-            self.logger.error(f"Error saving to {filepath}: {str(e)}")
-            return False
+        """Commit without a cancellation point between disk and caller state updates."""
+        return self._write_json(filepath, data)
 
     def generate_malaphor(
         self,
@@ -367,15 +381,19 @@ class MalaphorGenerator:
         if len(candidate_proverbs) < 2:
             raise ValueError("Not enough proverbs to generate a malaphor")
 
-        while True:
-            proverb1 = candidate_proverbs[source1_index] if source1_index is not None else random.choice(candidate_proverbs)
-            proverb2 = candidate_proverbs[source2_index] if source2_index is not None else random.choice(candidate_proverbs)
-
-            if source1_index is not None and source2_index is not None:
-                break
-
-            if proverb2 != proverb1:  # Avoid same-phrase combinations
-                break
+        proverb1 = candidate_proverbs[source1_index] if source1_index is not None else random.choice(candidate_proverbs)
+        if source2_index is not None:
+            proverb2 = candidate_proverbs[source2_index]
+            if source1_index is None:
+                alternatives = [p for p in candidate_proverbs if p != proverb2]
+                if not alternatives:
+                    raise ValueError("Not enough distinct proverbs to generate a malaphor")
+                proverb1 = random.choice(alternatives)
+        else:
+            alternatives = [p for p in candidate_proverbs if p != proverb1]
+            if not alternatives:
+                raise ValueError("Not enough distinct proverbs to generate a malaphor")
+            proverb2 = random.choice(alternatives)
 
         new_malaphor = f"{proverb1['beginning']} {proverb2['ending']}"
 
@@ -387,7 +405,8 @@ class MalaphorGenerator:
             "language": str(proverb1.get("language", language or "en")).lower(),
         }
 
-        self._save_history_entry(result)
+        if not self._save_history_entry(result):
+            raise OSError("Could not save history.json. Check the destination and permissions.")
         return result
 
     def generate_random(self, source1_index: Optional[int] = None, source2_index: Optional[int] = None, language: Optional[str] = None) -> Dict[str, str]:
@@ -432,8 +451,14 @@ class MalaphorGenerator:
         if cancel_event is not None and cancel_event.is_set():
             return []
 
-        await asyncio.sleep(0)
-        return self.generate_batch(count=count, cancel_event=cancel_event, category=category, template_name=template_name, language=language)
+        results = []
+        for _ in range(max(0, int(count))):
+            await asyncio.sleep(0)
+            if cancel_event is not None and cancel_event.is_set():
+                break
+            results.extend(self.generate_batch(count=1, cancel_event=cancel_event,
+                                              category=category, template_name=template_name, language=language))
+        return results
 
     def cancel_generation(self, cancel_event: Optional[Any] = None) -> bool:
         """Set a cancellation event if one is supplied."""
@@ -450,6 +475,8 @@ class MalaphorGenerator:
             else:
                 beginning, ending = self._get_split_points(phrase_or_beginning)
 
+            if not beginning.strip() or not ending.strip():
+                return False
             new_proverb = {
                 "original": f"{beginning} {ending}",
                 "beginning": beginning,
@@ -457,23 +484,32 @@ class MalaphorGenerator:
                 "language": str(language or "en").lower(),
             }
 
-            self.proverbs.append(new_proverb)
+            updated = self.proverbs + [new_proverb]
+            if not await self._save_to_file("malaphors.json", {"proverbs": updated}):
+                return False
+            self.proverbs = updated
             self._build_search_index()
             self.search.cache_clear()
-            return await self._save_to_file("malaphors.json", {"proverbs": self.proverbs})
+            return True
         except Exception as e:
             self.logger.error(f"Error adding new proverb: {str(e)}")
             return False
 
-    def add_to_favorites(self, malaphor: str) -> None:
-        """Add a malaphor to favorites."""
-        if malaphor not in self.favorites:
-            self.favorites.append(malaphor)
-            self.save_favorites()
+    def add_to_favorites(self, malaphor: str) -> bool:
+        """Add a favorite only when it can be saved."""
+        if malaphor in self.favorites:
+            return True
+        with self._persistence_lock:
+            previous = self.favorites
+            self.favorites = self.favorites + [malaphor]
+            if not self._save_favorites_sync():
+                self.favorites = previous
+                return False
+            return True
 
     async def _save_favorites_async(self) -> bool:
         """Save favorite malaphors to a JSON file."""
-        return await self._save_to_file("favorites.json", {"favorites": self.favorites})
+        return self._save_favorites_sync()
 
     def save_favorites(self):
         """Save favorite malaphors to a JSON file."""
@@ -486,6 +522,10 @@ class MalaphorGenerator:
     async def export_malaphors(self, filepath: str) -> bool:
         """Export all original malaphors to a JSON file."""
         return await self._save_to_file(filepath, {"proverbs": self.proverbs})
+
+    async def export_favorites(self, filepath: str) -> bool:
+        """Export favorites to a JSON file."""
+        return await self._save_to_file(filepath, {"favorites": self.favorites})
 
     async def export_history(self, filepath: str) -> bool:
         """Export generated malaphor history to a JSON file."""
@@ -546,99 +586,130 @@ class MalaphorGenerator:
             return False
 
     async def import_malaphors(self, filepath: str) -> bool:
-        """Import malaphors from a JSON file and merge with existing ones."""
+        """Validate and save an import before changing the active library."""
+        self.last_import_error = None
+        self.last_import_count = 0
         try:
-            content = await asyncio.get_event_loop().run_in_executor(
-                None,
-                lambda: Path(filepath).read_text(encoding='utf-8')
+            content = await asyncio.get_running_loop().run_in_executor(
+                None, lambda: Path(filepath).read_text(encoding="utf-8")
             )
             data = json.loads(content)
+            if not isinstance(data, dict) or not isinstance(data.get("proverbs"), list):
+                raise ValueError("Expected a JSON object containing a proverbs list.")
+            for index, phrase in enumerate(data["proverbs"], start=1):
+                if not isinstance(phrase, dict) or any(
+                    not isinstance(phrase.get(key), str) or not phrase[key].strip()
+                    for key in ("original", "beginning", "ending")
+                ):
+                    raise ValueError(f"Phrase {index} needs non-empty original, beginning, and ending strings.")
+                for key in ("language", "source"):
+                    if key in phrase and not isinstance(phrase[key], str):
+                        raise ValueError(f"Phrase {index}: {key} must be a string.")
+                if "tags" in phrase and (
+                    not isinstance(phrase["tags"], list)
+                    or any(not isinstance(tag, str) for tag in phrase["tags"])
+                ):
+                    raise ValueError(f"Phrase {index}: tags must be a list of strings.")
 
-            if "proverbs" in data:
-                # Create a set of existing originals to avoid duplicates
-                existing = {p["original"] for p in self.proverbs}
-                new_proverbs = []
-                skipped_proverbs = []
+            existing = {p["original"] for p in self.proverbs}
+            additions = []
+            for phrase in data["proverbs"]:
+                if phrase["original"] not in existing:
+                    additions.append(phrase)
+                    existing.add(phrase["original"])
+            if not additions:
+                self.logger.info("No new malaphors to import.")
+                return False
 
-                for proverb in data["proverbs"]:
-                    if proverb["original"] not in existing:
-                        new_proverbs.append(proverb)
-                    else:
-                        skipped_proverbs.append(proverb["original"])
-
-                if new_proverbs:
-                    self.proverbs.extend(new_proverbs)
-                    # Save the merged proverbs. Some tests replace this method with a
-                    # synchronous lambda that returns a bool instead of an awaitable.
-                    save_result = self._save_to_file("malaphors.json", {"proverbs": self.proverbs})
-                    save_ok = await save_result if hasattr(save_result, "__await__") else bool(save_result)
-                    if save_ok:
-                        message = f"Successfully imported {len(new_proverbs)} new malaphors!"
-                        if skipped_proverbs:
-                            message += f"\n\nSkipped {len(skipped_proverbs)} duplicates."
-                        self.logger.info(message)
-                        return True
-                else:
-                    message = f"No new malaphors to import.\n{len(skipped_proverbs)} duplicates were found."
-                    self.logger.info(message)
-                    return False
-            return False
-        except Exception as e:
-            self.logger.error(f"Error importing malaphors: {str(e)}")
+            merged = self.proverbs + additions
+            save_result = self._save_to_file("malaphors.json", {"proverbs": merged})
+            save_ok = await save_result if hasattr(save_result, "__await__") else bool(save_result)
+            if not save_ok:
+                raise OSError("Could not save malaphors.json. Check the destination and permissions.")
+            self.proverbs = merged
+            self._build_search_index()
+            self.search.cache_clear()
+            self.last_import_count = len(additions)
+            self.logger.info("Successfully imported %s new malaphors.", len(additions))
+            return True
+        except (OSError, ValueError, TypeError) as exc:
+            self.last_import_error = str(exc)
+            self.logger.error("Error importing malaphors: %s", exc)
             return False
 
     async def edit_proverb(self, index: int, beginning: str, ending: str) -> bool:
-        """Edit an existing proverb and save changes to file."""
-        if index < 0 or index >= len(self.proverbs):
+        if not 0 <= index < len(self.proverbs) or not beginning.strip() or not ending.strip():
             return False
-
-        self.proverbs[index] = {
-            "original": f"{beginning} {ending}",
-            "beginning": beginning,
-            "ending": ending
-        }
-
-        return await self._save_to_file("malaphors.json", {"proverbs": self.proverbs})
-
-    async def delete_proverb(self, index: int) -> bool:
-        """Delete a proverb and save changes to file."""
-        if index < 0 or index >= len(self.proverbs):
+        updated = deepcopy(self.proverbs)
+        updated[index].update(original=f"{beginning} {ending}", beginning=beginning, ending=ending)
+        if not await self._save_to_file("malaphors.json", {"proverbs": updated}):
             return False
-
-        before = deepcopy(self.proverbs)
-        del self.proverbs[index]
+        self.proverbs = updated
         self._build_search_index()
         self.search.cache_clear()
-        self.undo_stack.record_state("delete_proverb", {"proverbs": before}, {"proverbs": deepcopy(self.proverbs)}, target=self)
-        return await self._save_to_file("malaphors.json", {"proverbs": self.proverbs})
+        return True
+
+    async def delete_proverb(self, index: int) -> bool:
+        if not 0 <= index < len(self.proverbs):
+            return False
+        before = deepcopy(self.proverbs)
+        updated = self.proverbs[:index] + self.proverbs[index + 1:]
+        if not await self._save_to_file("malaphors.json", {"proverbs": updated}):
+            return False
+        self.proverbs = updated
+        self._build_search_index()
+        self.search.cache_clear()
+        self.undo_stack.record_state("delete_proverb", {"proverbs": before}, {"proverbs": deepcopy(updated)})
+        return True
+
+    def _restore_action(self, redo=False):
+        stack = self.undo_stack.redo_stack if redo else self.undo_stack.undo_stack
+        if not stack:
+            return False
+        entry = stack[-1]
+        state = entry["after_state" if redo else "before_state"]
+        # Each supported deletion affects exactly one collection/file.
+        if len(state) != 1 or entry["target"] is not self:
+            return False
+        key, value = next(iter(state.items()))
+        files = {"proverbs": "malaphors.json", "history": "history.json", "favorites": "favorites.json"}
+        if key not in files:
+            return False
+        with self._persistence_lock:
+            if not self._write_json(files[key], value if key == "history" else {key: value}):
+                return False
+            result = self.undo_stack.redo() if redo else self.undo_stack.undo()
+            self._build_search_index()
+            self.search.cache_clear()
+            return result
 
     def undo_last_action(self) -> bool:
-        """Undo the most recent destructive action."""
-        return self.undo_stack.undo()
+        return self._restore_action()
 
     def redo_last_action(self) -> bool:
-        """Redo the most recent undone action."""
-        return self.undo_stack.redo()
+        return self._restore_action(redo=True)
 
     def get_all_proverbs(self) -> List[Dict[str, str]]:
         """Return all proverbs."""
         return self.proverbs
 
-    def delete_from_history(self, index: int) -> None:
-        """Delete an item from history by index and persist the updated list."""
-        if 0 <= index < len(self.history):
-            before = deepcopy(self.history)
-            del self.history[index]
-            self.undo_stack.record_state("delete_history", {"history": before}, {"history": deepcopy(self.history)}, target=self)
-            self._save_history_entry()
+    def _delete_saved_item(self, key, index):
+        with self._persistence_lock:
+            items = getattr(self, key)
+            if not 0 <= index < len(items):
+                return False
+            updated = items[:index] + items[index + 1:]
+            if not self._write_json(f"{key}.json", updated if key == "history" else {key: updated}):
+                return False
+            setattr(self, key, updated)
+            self.undo_stack.record_state(f"delete_{key}", {key: deepcopy(items)}, {key: deepcopy(updated)})
+            return True
 
-    def delete_from_favorites(self, index: int) -> None:
-        """Delete an item from favorites by index."""
-        if 0 <= index < len(self.favorites):
-            before = deepcopy(self.favorites)
-            del self.favorites[index]
-            self.undo_stack.record_state("delete_favorites", {"favorites": before}, {"favorites": deepcopy(self.favorites)}, target=self)
-            self.save_favorites()
+    def delete_from_history(self, index: int) -> bool:
+        return self._delete_saved_item("history", index)
+
+    def delete_from_favorites(self, index: int) -> bool:
+        return self._delete_saved_item("favorites", index)
 
     @lru_cache(maxsize=32)
     def search(self, query: str) -> List[Dict[str, str]]:
@@ -823,23 +894,22 @@ class MalaphorGenerator:
 
     # FEAT-3: Weighted Random Generation (Rating-based)
     def _load_ratings(self) -> None:
-        """Load phrase pair ratings from ratings.json if exists."""
         try:
-            ratings_path = Path("ratings.json")
-            if ratings_path.exists():
-                with open("ratings.json", "r", encoding='utf-8') as f:
-                    data = json.load(f)
-                    self.phrase_pair_ratings = data.get("ratings", {})
-        except (FileNotFoundError, json.JSONDecodeError):
-            self.phrase_pair_ratings = {}
+            data = json.loads(Path("ratings.json").read_text(encoding="utf-8"))
+            ratings = data.get("ratings") if isinstance(data, dict) else None
+            if not isinstance(ratings, dict) or any(
+                not isinstance(values, list) or any(type(rating) is not int or not 1 <= rating <= 5 for rating in values)
+                for values in ratings.values()
+            ):
+                raise ValueError("Expected ratings lists containing integers from 1 to 5")
+            self.phrase_pair_ratings = ratings
+        except FileNotFoundError:
+            pass
+        except (OSError, ValueError, TypeError) as exc:
+            self._protect_unreadable_file("ratings.json", exc)
 
-    def _save_ratings(self) -> None:
-        """Save phrase pair ratings to ratings.json."""
-        try:
-            with open("ratings.json", "w", encoding='utf-8') as f:
-                json.dump({"ratings": self.phrase_pair_ratings}, f, indent=2, ensure_ascii=False)
-        except OSError as e:
-            self.logger.error(f"Error saving ratings: {str(e)}")
+    def _save_ratings(self) -> bool:
+        return self._write_json("ratings.json", {"ratings": self.phrase_pair_ratings})
 
     def rate_malaphor(self, source1: str, source2: str, rating: int) -> None:
         """Rate a malaphor pair (1-5 stars). Used to train weighted generation."""
@@ -1338,22 +1408,20 @@ class MalaphorGenerator:
         else:
             filtered_indices = list(range(len(self.proverbs)))
 
-        # Generate with category filtering
-        while True:
-            if source1_index is not None and source1_index in filtered_indices:
-                proverb1 = self.proverbs[source1_index]
-            else:
-                idx1 = random.choice(filtered_indices)
-                proverb1 = self.proverbs[idx1]
-
-            if source2_index is not None and source2_index in filtered_indices:
-                proverb2 = self.proverbs[source2_index]
-            else:
-                idx2 = random.choice(filtered_indices)
-                proverb2 = self.proverbs[idx2]
-
-            if proverb1 != proverb2:
-                break
+        left = source1_index if source1_index in filtered_indices else random.choice(filtered_indices)
+        if source2_index in filtered_indices:
+            right = source2_index
+            if source1_index not in filtered_indices:
+                alternatives = [i for i in filtered_indices if self.proverbs[i] != self.proverbs[right]]
+                if not alternatives:
+                    raise ValueError("Not enough distinct phrases in this category")
+                left = random.choice(alternatives)
+        else:
+            alternatives = [i for i in filtered_indices if self.proverbs[i] != self.proverbs[left]]
+            if not alternatives:
+                raise ValueError("Not enough distinct phrases in this category")
+            right = random.choice(alternatives)
+        proverb1, proverb2 = self.proverbs[left], self.proverbs[right]
 
         new_malaphor = f"{proverb1['beginning']} {proverb2['ending']}"
 
@@ -1365,7 +1433,8 @@ class MalaphorGenerator:
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
-        self._save_history_entry(result)
+        if not self._save_history_entry(result):
+            raise OSError("Could not save history.json. Check the destination and permissions.")
         return result
 
     async def migrate_schema_add_tags(self) -> int:
@@ -1728,7 +1797,8 @@ class MalaphorGenerator:
 
         left_index, right_index = random.choice(pairs)
         result = self._build_generation_result(self.proverbs[left_index], self.proverbs[right_index])
-        self._save_history_entry(result)
+        if not self._save_history_entry(result):
+            raise OSError("Could not save history.json. Check the destination and permissions.")
         return result
 
     def generate_with_constraints(
@@ -1782,7 +1852,8 @@ class MalaphorGenerator:
             if max_syllables is not None and syllable_count > max_syllables:
                 continue
 
-            self._save_history_entry(result)
+            if not self._save_history_entry(result):
+                raise OSError("Could not save history.json. Check the destination and permissions.")
             return result
 
         raise ValueError("Unable to satisfy the requested constraints")
@@ -1820,14 +1891,7 @@ class MalaphorGenerator:
         return default_templates
 
     def _save_generation_templates(self) -> bool:
-        try:
-            self._generation_templates_path().write_text(
-                json.dumps(self.generation_templates, indent=2, ensure_ascii=False),
-                encoding="utf-8",
-            )
-            return True
-        except OSError:
-            return False
+        return self._write_json(self._generation_templates_path(), self.generation_templates)
 
     def get_generation_templates(self) -> List[Dict[str, str]]:
         return list(self.generation_templates)
@@ -1907,7 +1971,8 @@ class MalaphorGenerator:
             category=category,
             template=template,
         )
-        self._save_history_entry(result)
+        if not self._save_history_entry(result):
+            raise OSError("Could not save history.json. Check the destination and permissions.")
         return result
 
     def compare_malaphors(self, entries: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -1987,14 +2052,7 @@ class MalaphorGenerator:
         return {}
 
     def _save_settings_profiles(self, profiles: Dict[str, Dict[str, Any]]) -> bool:
-        try:
-            self._settings_profiles_path().write_text(
-                json.dumps(profiles, indent=2, ensure_ascii=False),
-                encoding="utf-8",
-            )
-            return True
-        except OSError:
-            return False
+        return self._write_json(self._settings_profiles_path(), profiles)
 
     def list_settings_profiles(self) -> List[str]:
         return sorted(self._load_settings_profiles().keys())
@@ -2042,13 +2100,11 @@ class MalaphorGenerator:
         if target_index >= len(self.proverbs):
             target_index = len(self.proverbs) - 1
 
-        proverb = self.proverbs.pop(source_index)
-        self.proverbs.insert(target_index, proverb)
-        try:
-            Path("malaphors.json").write_text(
-                json.dumps({"proverbs": self.proverbs}, indent=2, ensure_ascii=False),
-                encoding="utf-8",
-            )
-            return True
-        except OSError:
+        updated = list(self.proverbs)
+        updated.insert(target_index, updated.pop(source_index))
+        if not self._write_json("malaphors.json", {"proverbs": updated}):
             return False
+        self.proverbs = updated
+        self._build_search_index()
+        self.search.cache_clear()
+        return True

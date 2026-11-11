@@ -1,13 +1,13 @@
 import json
 import unittest
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 import sys
 import tkinter as tk
 from PyQt6 import QtWidgets
 from PyQt6.QtTest import QTest
-from malaphor_ui import MalaphorApp
-from malaphor_logic import MalaphorGenerator
+from maliphors_inator_ui import MaliphorsInatorApp
+from maliphors_inator_logic import MalaphorGenerator
 
 @pytest.mark.gui
 class TestMalaphorUI(unittest.TestCase):
@@ -27,8 +27,10 @@ class TestMalaphorUI(unittest.TestCase):
         self.root.clipboard_get = MagicMock(return_value="")
         
         # Initialize the app with our root window
-        self.app = MalaphorApp(root=self.root)
-        self.app.generator = MagicMock()
+        self.app = MaliphorsInatorApp(root=self.root)
+        self.app.generator.stop_auto_save()
+        self.app.generator = MagicMock(spec=MalaphorGenerator)
+        self.app.generator.history = []
         
         # Set up mock generator responses
         self.app.generator.generate_malaphor.return_value = {
@@ -112,7 +114,7 @@ class TestMalaphorUI(unittest.TestCase):
         root = tk.Tk()
         root.withdraw()
         try:
-            app = MalaphorApp(root=root)
+            app = MaliphorsInatorApp(root=root)
             mock_start_auto_save.assert_called_once_with(interval_seconds=300.0)
 
             app.close()
@@ -186,8 +188,9 @@ class TestMalaphorUI(unittest.TestCase):
         self.assertIsNotNone(dialog)
         self.app.generator.get_all_proverbs.assert_called_once()
 
+    @patch('tkinter.messagebox.showinfo')
     @patch('tkinter.filedialog')
-    def test_import_export_dialogs(self, mock_filedialog):
+    def test_import_export_dialogs(self, mock_filedialog, mock_showinfo):
         """Test import/export dialog creation."""
         test_file = "test_export.json"
         mock_filedialog.asksaveasfilename.return_value = test_file

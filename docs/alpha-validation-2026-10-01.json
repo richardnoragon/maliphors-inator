@@ -1,0 +1,30 @@
+{
+  "fingerprint": "8822c84f51fe10a229993e72414983265d27ca05581c640e0ed5138f05926078",
+  "files": {
+    "__init__.py": "0249ff18439119aa0aa81c88b9cc4010f12407c1a67c1a4c7ac135fac35e0b6b",
+    "conftest.py": "b4b12052dd0fe3a7a727e75cc252ce6d9d0b9f90523c5bc130e2e2446f2e91e1",
+    "debug_tests.py": "2c944d02e8a5983a83d477e1aa30de112ae3b41a68126a98e998bd143bcdc501",
+    "log_manager.py": "78f9620b3a68267fdd67e9f4f74563c4ade9016c3ed52e6c8f103fd375be012c",
+    "log_manager_ template.py": "0e0a2af8df20934bc1bc4191e3ddf061507ca8456d4acca65f57f79e766410ad",
+    "main.py": "b1a9b748f6e29eb0e4d494886b4391fae34d44f3843f4c5f422745201a989489",
+    "malaphor_cli.py": "6d2780c5b6d4408a78bde42f635346934ea68b4ab7d11a7c35fb6eb6d2b4ba54",
+    "malaphor_logic.py": "42ec52b0151005d767a79ae128fdcc3b0be0ba35a3fd56bc635d3efe5430e37a",
+    "malaphor_ui.py": "7e5065e607631d54885c6dc4f88a4bd7b1628e7b7b8a2281b3f93855c4d138e8",
+    "malaphors.json": "7c26c2d203b0a5ae2b935bf4c3043e80f548b765de932849634e2426960d99cf",
+    "pytest.ini": "a7684bd99d60c0c7c1c80f7bbec6e907d4da42dc4cc673827a6bac794f710654",
+    "requirements.txt": "001971c713a0ea85aab97b81467d5fafa17a1af2e05edba39381039f4cf11d91",
+    "scripts/daily_launcher.py": "50dd591b004b0d8b8f610f66329e8e7c930ecd3b3daf84c410ba928ec9b55eda",
+    "scripts/desktop_walkthrough.py": "ddc77e37a2ad80d22407808069f01df5407f93a8d9ae18c0f2260c0fac4af6a5",
+    "scripts/install_daily_test.py": "c8dd89d07ed0f309c52aea4fc6f2596fbd06c08cb6217a10018c91a1145ac4b7",
+    "settings_manager.py": "4eaea546eb46c79032829880fad5d75ed9f2e03056acd9371838ea98982cccce",
+    "test-requirements.txt": "f447edfb8525412e8f7e897545bb09191acf846d0eef68954b8590e2cab4180f",
+    "test_alpha_readiness.py": "524a36b1c0e55ccf99ae9befcaf6d04a8dfb9007624e9efe20b772712ac9d007",
+    "test_cli.py": "aa19053acb28faa23ea53d3e6a46de004c830bd72dca119cc52db030fd2717a1",
+    "test_daily_launcher.py": "a5706b7f19f749907c730526ee7ea01920912cdbc4a77d73938fc4933bd574e1",
+    "test_daily_testing.py": "315414ad4e416ec6d6131775ef5cfd529b890e3da1e0406e202c12ffa2e24456",
+    "test_logging.py": "e58a8763e05ef4e6e38cfe110aab9e4109d51fff81484668cbbebfeedd59e35d",
+    "test_malaphor_logic.py": "f4902a12f4690a57e589de9602e173b81b16d19a54c05a2390a745ca00849d11",
+    "test_malaphor_ui.py": "175ee59fc5061b5e6d647e50c27540e06b963b857a87fa7cfe977d35acc1d1e1",
+    "test_release_readiness.py": "97771429ae0206281297f335ae9e4cac1a2542640e9896716d814b43d1dd77e7"
+  }
+}

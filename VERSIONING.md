@@ -27,6 +27,12 @@ Semantic versioning is required for documented releases and tags.
 - Build metadata such as `+commitSHA` or `+buildID` MAY be appended for
   traceability.
 
+## Development stage and version numbers
+
+[alpha.md](alpha.md) defines alpha, beta, and stable-release readiness; [ROADMAP.md](ROADMAP.md#alpha-readiness) records the current evidence. The application remains pre-alpha while alpha readiness is in progress. Existing `1.0.0` package metadata and historical `1.0.0`/`2.0.0` changelog or framework entries do not establish application maturity or choose the next application version.
+
+Choose and reconcile application version metadata when preparing a reviewed release. A development-stage decision does not require publication; a prerelease tag must match the evidenced stage and the [release process](RELEASE_PROCESS.md).
+
 ## Release Discipline
 
 - Every user-facing change MUST have a changelog entry in [CHANGELOG.md](CHANGELOG.md).

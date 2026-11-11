@@ -1,12 +1,27 @@
 # Feature Specification: Comprehensive Improvements & Features Roadmap
 
-**Feature ID:** improvements-roadmap  
-**Version:** 1.0.0  
-**Date:** 2026-09-07  
-**Status:** Ready for Planning
+**Feature ID:** improvements-roadmap\
+**Version:** 1.1.0\
+**Date:** 2026-10-01\
+**Status:** Active backlog; application pre-alpha, alpha readiness in progress
+
+Application stage follows [alpha.md](../../../alpha.md); current evidence and open gates are in [ROADMAP.md](../../../ROADMAP.md#alpha-readiness). This specification’s version and feature completion do not declare an application release. The full enhancement backlog is not required for alpha.
 
 ## Notes
+- This repository already contains a functional Tkinter-based app, CLI, JSON phrase database, and supporting UI workflows.
 - Versioning policy now lives in [../../../VERSIONING.md](../../../VERSIONING.md).
+- Public branding uses “maliphors-inator”; current Python modules and repository names follow the rebrand documented in [REBRANDING.md](../../../REBRANDING.md).
+
+## Current Implementation Snapshot
+
+The codebase already includes the core foundation for the project:
+- GUI generation workflow with favorites, history, search, and manual phrase selection
+- JSON-based phrase persistence, settings, and logging support
+- CLI generation/search/export interfaces
+- Category-aware generation and gallery/statistics experiences
+- Extensive built-in phrase database and import/export tooling
+
+This roadmap file tracks the remaining backlog and planned refinements rather than the entire original feature set from a greenfield start.
 
 ## Overview
 
@@ -64,3 +79,7 @@ Create a prioritized, tracked set of GitHub issues to guide development efforts 
 ## Open Questions
 
 None - specification derived from comprehensive codebase analysis and recommendations.
+
+## Alpha technical checkpoint
+
+On 2026-10-01, the reviewed snapshot passed 214 tests, dependency checks, the real-dialog walkthrough, and backup recovery. Architecture review and initial Ubuntu 26.04.1/Python 3.14.4/Tk 8.6.17 validation are complete. The application remains pre-alpha pending human usability review and independent developer handoff. See the [current gates](../../../ROADMAP.md#alpha-readiness) and [validation record](../../../RELEASE_PROCESS.md#alpha-technical-validation-on-2026-10-01).

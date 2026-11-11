@@ -1,10 +1,13 @@
 # Tasks: Comprehensive Improvements & Features Roadmap
 
-**Feature:** improvements-roadmap  
-**Version:** 1.0.0  
-**Date:** 2026-09-07  
-**Total Tasks:** 37  
-**Estimated Total Time:** ~140 hours
+Current project: `maliphors-inator`. See [rebranding and module mappings](../../../REBRANDING.md). Completed-task records below retain their historical paths.
+
+**Feature:** improvements-roadmap\
+**Version:** 1.1.0\
+**Date:** 2026-10-01\
+**Total Tasks:** 37\
+**Estimated Total Time:** ~140 hours\
+**Application status:** Pre-alpha; alpha readiness in progress as of 2026-10-01. See the [readiness gates](../../../ROADMAP.md#alpha-readiness) and [stage definitions](../../../alpha.md). Feature completion below does not establish application maturity; the full enhancement backlog is not an alpha prerequisite.
 
 ---
 
@@ -1197,3 +1200,7 @@ Audit database for exact and similar duplicates. Provide tools to identify and r
 **Quick Wins (1-2 hours):** 5 tasks
 **Medium (3-5 hours):** 21 tasks
 **Complex (6+ hours):** 11 tasks
+
+## Alpha technical checkpoint
+
+On 2026-10-01, the reviewed snapshot passed 214 tests, dependency checks, the real-dialog walkthrough, and backup recovery. Architecture review and initial Ubuntu 26.04.1/Python 3.14.4/Tk 8.6.17 validation are complete. The application remains pre-alpha pending human usability review and independent developer handoff. See the [current gates](../../../ROADMAP.md#alpha-readiness) and [validation record](../../../RELEASE_PROCESS.md#alpha-technical-validation-on-2026-10-01).
