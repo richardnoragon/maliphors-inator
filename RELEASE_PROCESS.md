@@ -74,7 +74,7 @@ Checked 246 local document/image targets, `git diff --check`, Python compilation
 
 Built the wheel and versioned Linux archive with `.venv/bin/python scripts/build_linux_release.py --no-isolation` after installing build/setuptools/wheel into the project environment (this host lacks ensurepip). Installed the wheel into `/tmp/maliphors-package-verify`, changed outside the checkout, generated CLI output from bundled resources and smoke-tested the real desktop. Neither Qt binding was installed in that verification environment; core imports succeeded.
 
-Test/build logs are `/tmp/maliphors-upgrades-tests.log` and `/tmp/maliphors-build.log` (temporary). No personal/installed Daily Test dataset was migrated or replaced during testing. Hosted CI verification is recorded separately after the new workflow runs. Human usability review and independent handoff remain pending; no public release/tag or stage promotion is implied.
+Test/build logs are `/tmp/maliphors-upgrades-tests.log` and `/tmp/maliphors-build.log` (temporary). No personal/installed Daily Test dataset was migrated or replaced during testing. Hosted CI passed for implementation commit `1bc6f17` on Linux/Python 3.12 and 3.14: regressions under Xvfb, wheel/archive build, installed-wheel desktop/CLI smoke checks and artifact uploads all completed successfully. [Verified run](https://github.com/richardnoragon/maliphors-inator/actions/runs/43012392530). The hosted run exposed an existing test race at the nominal Qt timer boundary; logging tests now wait for actual delivery within a bounded deadline, and all assertions remain enabled. Human usability review and independent handoff remain pending; no public release/tag or stage promotion is implied.
 
 ## Validation evidence for the next milestone
 

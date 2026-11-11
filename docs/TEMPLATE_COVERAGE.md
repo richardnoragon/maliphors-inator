@@ -25,3 +25,5 @@ Audit date: 2026-11-11. Source: [Project Documents Templates](../Project%20Docum
 The 2026-11-11 pass uses real-widget regression checks in [test_user_assistance.py](../test_user_assistance.py) alongside the existing suite, checks local document links and captures main/help screenshots from disposable data. The application remains pre-alpha. Human usability and independent handoff remain pending; see the [roadmap](../ROADMAP.md#alpha-readiness).
 
 Final automated result: **228 passed in 7.48 seconds** on Linux/Python 3.14.4 with the available Tk display. Command: `.venv/bin/python -m pytest -q -o log_cli=false`. All **235 local document/image targets** checked in top-level Markdown and `docs/*.md` resolve; `git diff --check` passed. Main/help screenshots were captured and inspected, and help-window button visibility has real-widget regression coverage.
+
+The subsequent [seven-upgrade pass](UPGRADES.md) expands the suite to 252 passing tests and verifies Linux packaging/CI on Python 3.12 and 3.14. See the [release evidence](../RELEASE_PROCESS.md#seven-upgrade-validation-on-2026-11-11) for the reviewed implementation and remaining human gates.

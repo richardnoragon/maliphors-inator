@@ -16,7 +16,7 @@ This file is the current source for milestone status and development gates. Supp
 
 Implemented: four focused views; unified explicit data location and automatic legacy copy; startup backups/previewed restore; ratings/avoidance/recent suppression/More Like This; row-level import review; worker progress/cancellation; Linux package/version/optional Qt; GitHub test and package workflow. See [details and limits](docs/UPGRADES.md).
 
-Local verification: 252 tests passed in 8.72 seconds; 246 local document/image targets resolve. The built wheel was installed and smoke-tested outside the checkout without Qt. Human usability review remains pending. The installed legacy Daily Test snapshot has not been replaced by source changes. Hosted CI evidence and final validation are recorded in the release process after the run completes.
+Local verification: 252 tests passed in 8.72 seconds; 246 local document/image targets resolve. The built wheel was installed and smoke-tested outside the checkout without Qt. Human usability review remains pending. The installed legacy Daily Test snapshot has not been replaced by source changes. Hosted CI passed on Linux/Python 3.12 and 3.14, including regressions, package builds and installed-wheel smoke checks. [Run evidence](https://github.com/richardnoragon/maliphors-inator/actions/runs/43012392530) and final validation are recorded in the release process.
 
 ## Near-term priorities
 
