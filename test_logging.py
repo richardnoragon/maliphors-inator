@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 import sys
 import os
 import unittest
+import time
 from PyQt6 import QtWidgets
 from PyQt6.QtCore import Qt
 from PyQt6.QtTest import QTest
@@ -30,12 +31,23 @@ class TestLogManager(unittest.TestCase):
             self.log_manager.deleteLater()
         QTest.qWait(0)  # Process any pending events
 
+    def wait_for_log(self, message):
+        """Wait for delivery, not exactly the timer's nominal 100 ms interval.
+
+        Coarse Qt timers may fire after their interval; hosted Qt 6.12 exposes
+        that race. Keep processing real events with a bounded delivery deadline.
+        """
+        deadline = time.monotonic() + 2
+        while message not in self.log_manager.logTextEdit.toPlainText() and time.monotonic() < deadline:
+            QTest.qWait(10)
+        self.assertIn(message, self.log_manager.logTextEdit.toPlainText())
+
     def test_log_message_info(self):
         """Test logging of info messages."""
         test_message = "Test info message"
         initial_text = self.log_manager.logTextEdit.toPlainText()
         log_message(test_message, logging.INFO)
-        QTest.qWait(100)  # Wait for message to be processed
+        self.wait_for_log(test_message)
         final_text = self.log_manager.logTextEdit.toPlainText()
         self.assertGreater(len(final_text), len(initial_text))
         self.assertIn(test_message, final_text)
@@ -45,7 +57,7 @@ class TestLogManager(unittest.TestCase):
         test_message = "Test warning message"
         initial_text = self.log_manager.logTextEdit.toPlainText()
         log_message(test_message, logging.WARNING)
-        QTest.qWait(100)
+        self.wait_for_log(test_message)
         final_text = self.log_manager.logTextEdit.toPlainText()
         self.assertGreater(len(final_text), len(initial_text))
         self.assertIn(test_message, final_text)
@@ -55,7 +67,7 @@ class TestLogManager(unittest.TestCase):
         test_message = "Test error message"
         initial_text = self.log_manager.logTextEdit.toPlainText()
         log_message(test_message, logging.ERROR)
-        QTest.qWait(100)
+        self.wait_for_log(test_message)
         final_text = self.log_manager.logTextEdit.toPlainText()
         self.assertGreater(len(final_text), len(initial_text))
         self.assertIn(test_message, final_text)
@@ -63,7 +75,7 @@ class TestLogManager(unittest.TestCase):
     def test_clear_logs(self):
         """Test clearing of logs."""
         log_message("Test message before clear")
-        QTest.qWait(100)
+        self.wait_for_log("Test message before clear")
         self.assertNotEqual("", self.log_manager.logTextEdit.toPlainText())
         
         # Click clear button
@@ -78,7 +90,7 @@ class TestLogManager(unittest.TestCase):
         )
         initial_text = self.log_manager.logTextEdit.toPlainText()
         self.log_manager.qt_handler.emit(test_record)
-        QTest.qWait(100)
+        self.wait_for_log("Test message")
         final_text = self.log_manager.logTextEdit.toPlainText()
         self.assertGreater(len(final_text), len(initial_text))
 
@@ -90,7 +102,7 @@ class TestLogManager(unittest.TestCase):
         
         # Add some logs to export
         log_message("Test export message")
-        QTest.qWait(100)
+        self.wait_for_log("Test export message")
         
         # Click export button
         QTest.mouseClick(self.log_manager.exportButton, Qt.MouseButton.LeftButton)
@@ -113,7 +125,7 @@ class TestLogManager(unittest.TestCase):
         test_message = "Test formatting"
         initial_text = self.log_manager.logTextEdit.toPlainText()
         log_message(test_message, logging.INFO)
-        QTest.qWait(100)
+        self.wait_for_log(test_message)
         final_text = self.log_manager.logTextEdit.toPlainText()
         self.assertGreater(len(final_text), len(initial_text))
         self.assertIn(test_message, final_text)
