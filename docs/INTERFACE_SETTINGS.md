@@ -43,3 +43,5 @@ CPU/drive thresholds, resource limiting and related notifications are **excluded
 ## Verification
 
 `test_interface_settings.py` covers validation/portability, shared fonts, menu visibility, System theme and backup compatibility, failed saves, best-effort geometry requests, disable-remember behavior, table sorting/row identity and settings import/export drafts. Existing desktop, data, CLI, help and packaging checks continue to apply. Human usability review remains a separate gate.
+
+Validated implementation: `51efb7b`. [GitHub CI](https://github.com/richardnoragon/maliphors-inator/actions/runs/45446292828) passed all 278 tests, Linux package builds and installed-wheel smoke checks on Python 3.12 and 3.14. Screenshots were captured from disposable sample data; no personal dataset was replaced.

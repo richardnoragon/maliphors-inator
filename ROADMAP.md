@@ -20,7 +20,7 @@ Local verification: 252 tests passed in 8.72 seconds; 246 local document/image t
 
 ## Interface settings — 2026-11-24
 
-Implemented Tools → Interface: common menu/dialog fonts, Light/Dark/System, English-only UI language, remembered window geometry, import-table layout/sorting and portable interface settings. CPU/drive limits and notifications are excluded following maintainer clarification. See [interface options and platform behavior](docs/INTERFACE_SETTINGS.md). Local verification passed 278 full-suite tests plus 50 final focused checks, with a built/installed dev2 wheel and screenshots from disposable data. Human usability review remains open.
+Implemented Tools → Interface: common menu/dialog fonts, Light/Dark/System, English-only UI language, remembered window geometry, import-table layout/sorting and portable interface settings. CPU/drive limits and notifications are excluded following maintainer clarification. See [interface options and platform behavior](docs/INTERFACE_SETTINGS.md). Local verification passed 278 full-suite tests plus 50 final focused checks, with a built/installed dev2 wheel and screenshots from disposable data. [Hosted CI](https://github.com/richardnoragon/maliphors-inator/actions/runs/45446292828) passed all tests, package builds and installed-wheel smoke checks on Linux/Python 3.12 and 3.14. Human usability review remains open.
 
 ## Near-term priorities
 
