@@ -186,3 +186,13 @@ Decision: group the desktop into Generate/Library/Favorites/History; use one exp
 Reason: improve discoverability, protect saved data, make imports reviewable and make installation/testing reproducible.
 
 Consequences: version 0.1.0.dev1 identifies a pre-alpha development artifact; existing historical versions do not establish stage readiness. Source precedence, worker cancellation boundaries and Linux-only locks are documented in docs/UPGRADES.md. The Daily Test stays an independent sandbox. No cloud sync or remote AI service is added.
+
+## ADR-013 — Shared interface options (2026-11-24)
+
+Status: implemented; human usability review remains open.
+
+Decision: add Tools → Interface with shared named-font roles, Light/Dark/System, persisted window size/location, applicable table layout/sorting and interface-only import/export. English is the only UI language, distinct from source phrase language. The maintainer explicitly excluded CPU/drive limits and related notifications from this project.
+
+Reason: keep menus and dialogs consistent, make existing interface options discoverable and support portable preferences without mixing user data with appearance settings.
+
+Consequences: the desktop can override positioning, System theme has a documented Linux preference/fallback path, and optional Qt utilities reload fonts on launch. Import/export has a project/version marker, a strict settings allowlist and a review-before-Apply flow; full-data restore shares schema validation.

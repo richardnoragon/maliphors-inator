@@ -80,3 +80,7 @@ New generation/storage behavior should extend the generator and preserve format 
 ## Upgrade modules (2026-11-11)
 
 `app_storage.py` owns path resolution, migration, session locks and verified ZIP snapshots/restore. `library_workflows.py` plans cancellable imports and cleanup without writing. `desktop_workflows.py` owns Tk worker/progress/review dialogs. `app_resources.py` locates source or wheel resources; `app_version.py` is the single package-version source. `pyproject.toml` separates core, optional Qt and test dependencies. The Linux CI workflow runs GUI tests under Xvfb and packages/smoke-tests the wheel. The [upgrade guide](docs/UPGRADES.md) records operational limits and migration precedence.
+
+## Interface preference layer (2026-11-24)
+
+`interface_settings.py` validates appearance/window/table preferences, creates shared Tk named fonts, styles new top-level windows, tracks geometry, and provides the Tools → Interface dialog. It registers the import-review Treeview by stable column/row IDs and sorts display order without modifying imported records. The same validation is used for full-data backup restore. Portable settings exports include only a strict interface allowlist, preserving onboarding and unrelated internal state. Optional Qt utilities read the chosen font on startup. System theme detection uses bounded Linux desktop preference reads and a Light fallback. See the [interface guide](docs/INTERFACE_SETTINGS.md) for platform limits and the explicit exclusion of resource monitoring.

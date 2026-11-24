@@ -8,6 +8,7 @@ import threading
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 
+from interface_settings import IMPORT_COLUMN_WIDTHS
 from app_storage import create_backup, preview_restore, restore_backup, STATE_FILES
 from library_workflows import (OperationCancelled, preview_import, classify_rows,
                                plan_cleanup, checkpoint)
@@ -29,6 +30,7 @@ class DesktopWorkflows:
         events = queue.Queue()
         self.cancel = threading.Event()
         win = tk.Toplevel(self.app.root)
+        win._interface_transient = True
         win.title(title)
         win.geometry('500x180')
         win.transient(self.app.root)
@@ -100,20 +102,27 @@ class DesktopWorkflows:
         summary.pack(fill='x')
         footer = ttk.Frame(win)
         footer.pack(side='bottom', fill='x', padx=10, pady=10)
-        tree = ttk.Treeview(win, columns=('status', 'include', 'phrase', 'error'), show='headings', height=12)
-        for key, title, width in [('status','Status',85), ('include','Import?',65), ('phrase','Original phrase',420), ('error','Issue',250)]:
+        table_frame = ttk.Frame(win)
+        table_frame.pack(fill='both', expand=True, padx=10)
+        tree = ttk.Treeview(table_frame, columns=('status', 'include', 'phrase', 'error'), show='headings', height=12)
+        for key, title, width in [(c, label, IMPORT_COLUMN_WIDTHS[c]) for c, label in [('status','Status'), ('include','Import?'), ('phrase','Original phrase'), ('error','Issue')]]:
             tree.heading(key, text=title)
             tree.column(key, width=width, stretch=key in ('phrase', 'error'))
-        scroll = ttk.Scrollbar(win, orient='vertical', command=tree.yview)
-        scroll.pack(side='right', fill='y')
-        tree.configure(yscrollcommand=scroll.set)
-        tree.pack(fill='both', expand=True, padx=10)
+        scroll = ttk.Scrollbar(table_frame, orient='vertical', command=tree.yview)
+        scroll.grid(row=0, column=1, sticky='ns')
+        horizontal = ttk.Scrollbar(table_frame, orient='horizontal', command=tree.xview)
+        horizontal.grid(row=1, column=0, sticky='ew')
+        tree.configure(yscrollcommand=scroll.set, xscrollcommand=horizontal.set)
+        tree.grid(row=0, column=0, sticky='nsew')
+        table_frame.rowconfigure(0, weight=1)
+        table_frame.columnconfigure(0, weight=1)
         editor = ttk.LabelFrame(win, text='Selected row: edit the JSON object (including optional metadata)')
         editor.pack(fill='x', padx=10, pady=5)
         text = tk.Text(editor, height=7, wrap='word')
         text.pack(fill='x', padx=5, pady=5)
         current = list(rows)
         selected = [None]
+        self.app.interface.register_table(tree, 'import_review')
         def refresh():
             current[:] = classify_rows(current, self.app.generator.proverbs)
             tree.delete(*tree.get_children())
@@ -122,6 +131,7 @@ class DesktopWorkflows:
             for row in current:
                 p = row['phrase']
                 tree.insert('', 'end', iid=str(row['id']), values=(row['status'], 'yes' if row.get('include', True) else 'no', p.get('original', '') if isinstance(p, dict) else repr(p), row['error'] or ''))
+            self.app.interface.apply_table(tree)
         def select(event=None):
             if tree.selection():
                 selected[0] = int(tree.selection()[0])
@@ -264,6 +274,10 @@ class DesktopWorkflows:
                     g.undo_stack.redo_stack.clear()
                     self.app.preferences = self.app._load_ui_preferences()
                     self.app.theme_mode = self.app.preferences.get('theme', 'light')
+                    self.app.interface.configure_fonts()
+                    if self.app.theme_mode == 'system':
+                        from interface_settings import system_theme
+                        self.app.interface.system_mode = system_theme()
                     self.app._apply_theme(self.app.root)
                     self.app.current_result = None
                     self.app.sentence_label.config(text="Click 'Generate' to create a malaphor")

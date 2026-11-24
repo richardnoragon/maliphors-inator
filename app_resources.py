@@ -12,6 +12,6 @@ def resource_path(name):
 SNAPSHOT_FILES = [
     'main.py', 'maliphors_inator_cli.py', 'maliphors_inator_logic.py',
     'maliphors_inator_ui.py', 'user_assistance.py', 'desktop_workflows.py',
-    'app_storage.py', 'app_resources.py', 'app_version.py', 'library_workflows.py',
+    'interface_settings.py', 'app_storage.py', 'app_resources.py', 'app_version.py', 'library_workflows.py',
     'USER_GUIDE.md', 'CHANGELOG.md', 'LICENSE', 'malaphors.json', 'requirements.txt',
 ]

@@ -173,6 +173,16 @@ TOPICS = {'start': ('Getting Started',
            'telemetry or personal data.',
            ('start', 'report'))}
 
+TOPICS['interface'] = (
+    'Interface Settings', 'interface settings theme system dark light fonts size location columns sorting import export',
+    'Tools → Interface opens Appearance, Windows and Table Columns. Menus, submenus, controls and dialog text share a selected font family and base size; headings retain consistent roles.\n\n'
+    'Choose Light, Dark or System. System follows the Linux desktop color-scheme preference when available and otherwise uses Light. English is the only interface language; phrase-generation language remains separate.\n\n'
+    'Remember sizes and locations for main and dialog windows, set the default main opening geometry, or use the current main window. Off-screen geometry is clamped to the current screen.\n\n'
+    'For the import review table, show/hide/reorder/resize columns and choose sorting. Click a heading to sort during review; row IDs remain stable for corrections.\n\n'
+    'Export Settings writes interface-only JSON. Import Settings validates a project/version-marked file and loads a draft; review it and click Apply. Phrase data, favorites/history and onboarding are not included. Unavailable fonts use System default.\n\n'
+    'Resource thresholds and limit notifications are not part of this project.', ('advanced', 'shortcuts'))
+
+
 def search_topics(query):
     """AND-match normalized query words across title, keywords and article text."""
     terms = re.findall(r'\w+', query.casefold())
@@ -182,6 +192,8 @@ def search_topics(query):
 
 def context_topic(title):
     title = title.casefold()
+    if 'interface' in title:
+        return 'interface'
     for words, topic in [(('favorite',), 'generate'), (('history', 'phrase', 'combine'), 'search'),
                          (('import', 'proverb'), 'import'), (('export',), 'export'),
                          (('tag', 'categor', 'power', 'profile', 'statistic', 'gallery'), 'advanced')]:
@@ -200,6 +212,11 @@ class UserAssistance:
         self.demo_process = None
         self.demo_directory = None
         menu = tk.Menu(self.root)
+        tools = tk.Menu(menu, tearoff=False, font='TkMenuFont')
+        tools.add_command(label='Interface…', command=app.interface.show)
+        menu.add_cascade(label='Tools', menu=tools)
+        self.tools_menu = tools
+        self.menu = menu
         advanced = tk.Menu(menu, tearoff=False)
         for label, command in app.action_commands.items():
             advanced.add_command(label=label, command=command)
@@ -266,7 +283,7 @@ class UserAssistance:
         results.pack(fill='x', padx=12, pady=6)
         body = self.text(win, '')
         related = ttk.Frame(win)
-        related.pack(fill='x', padx=12)
+        related.pack(side='bottom', fill='x', padx=12, before=body.master)
         keys = []
 
         def display(key):
@@ -305,7 +322,7 @@ class UserAssistance:
         entry.bind('<Return>', select)
         refresh()
         display(topic if topic in TOPICS else 'start')
-        ttk.Button(win, text='Close', command=win.destroy).pack(pady=8)
+        ttk.Button(win, text='Close', command=win.destroy).pack(side='bottom', pady=8, before=related)
         entry.focus_set()
         return win
 
@@ -315,8 +332,8 @@ class UserAssistance:
         except OSError:
             content = f'{name} is unavailable in this installation. Use Search Help for offline guidance.'
         win = self.window(title)
+        ttk.Button(win, text='Close', command=win.destroy).pack(side='bottom', pady=8)
         self.text(win, content)
-        ttk.Button(win, text='Close', command=win.destroy).pack(pady=8)
         return win
 
     def user_guide(self):
@@ -327,7 +344,7 @@ class UserAssistance:
 
     def welcome(self):
         win = self.window('Getting Started — maliphors-inator', '680x540')
-        self.text(win, TOPICS['start'][2] + '\n\nChoose your first action below. Demo changes are discarded when its window closes. You can skip onboarding and replay it from Help.')
+        body = self.text(win, TOPICS['start'][2] + '\n\nChoose your first action below. Demo changes are discarded when its window closes. You can skip onboarding and replay it from Help.')
         actions = ttk.Frame(win)
         actions.pack(fill='x', padx=12)
         ttk.Button(actions, text='Create New Phrase', command=self.app.show_add_proverb_dialog).pack(side='left', padx=3)
@@ -344,6 +361,8 @@ class UserAssistance:
                     return
             win.destroy()
         ttk.Button(win, text='Done / Skip for now', command=finish).pack(pady=8)
+        body.master.pack_forget()
+        body.master.pack(fill='both', expand=True, padx=12, pady=8)
         win.protocol('WM_DELETE_WINDOW', finish)
         win.bind('<Escape>', lambda event: finish())
         return win
@@ -516,6 +535,8 @@ class UserAssistance:
         next_button.pack(pady=4)
         ttk.Button(win, text='Related Help', command=lambda: self.show_help('backup' if kind == 'backup' else 'import' if kind == 'import' else 'generate')).pack(pady=4)
         ttk.Button(win, text='Cancel / Close', command=win.destroy).pack(pady=6)
+        label.pack_forget()
+        label.pack(fill='both', expand=True)
         render()
         return win
 

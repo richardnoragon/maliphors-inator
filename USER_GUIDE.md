@@ -22,6 +22,14 @@ Normal entry points prevent another desktop/CLI writer from opening the same dir
 
 **Long operations:** Import, cleanup, batch work and backup workflows show progress without freezing the main event loop. Cancel is checked before commit or between records. A save already committing finishes safely; cancelling a batch keeps completed saved results. Closing the app requests cancellation and waits before final save.
 
+## Interface options
+
+Open **Tools → Interface…** (also available through Ctrl+Shift+P). Appearance selects Light, Dark or System, a shared font family and a base size. Menus/submenus, dialog controls, help and tables share those fonts; headings keep their distinct roles. The interface language is English only and is separate from phrase-generation language.
+
+Windows remembers size and position separately, offers a default main opening geometry and can use the current main window. Off-screen positions are clamped; the desktop window manager may adjust placement. Table Columns customizes the import-review table's order, visibility, widths and sorting. Heading clicks toggle sort direction without changing row identity.
+
+Export Settings writes interface-only JSON. Import Settings loads a validated draft; review it and click Apply. Phrase data and onboarding are excluded, and failed saves preserve the active settings. Resource-limit monitoring/notifications are not included in this project. See the [complete interface guide](docs/INTERFACE_SETTINGS.md).
+
 ## Daily test version on this laptop
 
 Open **maliphors-inator Daily Test** from the application menu or double-click its desktop shortcut. The title shows the pre-alpha build ID. The installed snapshot runs independently of the source checkout.

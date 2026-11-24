@@ -10,6 +10,8 @@ class SettingsManagerUI(QtWidgets.QMainWindow):
         
         # Load UI
         uic.loadUi(str(resource_path('settings_manager.ui')), self)
+        from interface_settings import apply_qt_fonts
+        apply_qt_fonts(self)
         
         self.current_file = json_file_path
         self.settings_data = {}

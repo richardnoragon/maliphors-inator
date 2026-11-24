@@ -8,6 +8,7 @@ All notable changes to this project are recorded here using semantic versioning.
 - Adopt `maliphors-inator` across the repository, workspace, current documentation, GUI, CLI, runtime modules, and daily launcher. See [REBRANDING.md](REBRANDING.md) for migration and validation. Earlier branding entries below describe their original changes.
 
 ### Added
+- 2026-11-24 / 0.1.0.dev2: Tools → Interface settings for Light/Dark/System, shared font family/size, English-only UI language, saved window geometry, import-review column visibility/order/widths/sorting and validated interface-only JSON import/export. Resource-limit monitoring and notifications are excluded by maintainer request.
 - 0.1.0.dev1 upgrade: four focused views; shared desktop/CLI data directory with automatic legacy copying; startup backups, verified restore preview and rollback; persistent ratings/avoidance and More Like This; editable import review; cancellable worker operations.
 - Linux wheel and installer archive, optional Qt dependencies, shared version source, and GitHub GUI-test/package workflow. See [upgrade guide](docs/UPGRADES.md).
 - 2026-11-11: Offline Help menu, first-launch guidance, temporary demo, real-control feature tour, guided tasks, F1 context help, searchable articles, troubleshooting diagnostics and Ctrl+Shift+P action palette. Daily snapshots include help content.
@@ -30,6 +31,7 @@ All notable changes to this project are recorded here using semantic versioning.
 - Completed the UI-side language selector so the main Tkinter app can generate within a chosen language while defaulting to all available phrase sets.
 
 ### Fixed
+- Normalize menu/submenu and dialog fonts, remove hard-coded Arial variants, apply styling to newly opened dialogs and optional Qt utilities, and keep help actions visible with the shared font size.
 - Preserve onboarding and other preference keys when saving a theme; make Ctrl+F open source search and preserve normal Ctrl+C inside text fields. Correct the user-guide template filename’s trailing newline.
 - Alpha technical pass, 2026-10-01: preserve existing JSON files on interrupted writes, keep core state unchanged after failed edits/deletions/reordering, protect unreadable saved files, persist deletion undo/redo, preserve metadata and refresh phrase search, and report generation/deletion write failures.
 - Prevent duplicate-only generation from hanging and fix tooltip errors when hovering listboxes. Added recovery and regression checks; the isolated Ubuntu/Python 3.14.4 snapshot passed 214 tests and the real-dialog walkthrough. Human usability review and independent developer handoff remain open.

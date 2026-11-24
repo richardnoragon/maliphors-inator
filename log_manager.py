@@ -73,6 +73,8 @@ class LogManager(QtWidgets.QMainWindow):
         from app_resources import resource_path
         ui_file = str(resource_path("log_manager.ui"))
         uic.loadUi(ui_file, self)
+        from interface_settings import apply_qt_fonts
+        apply_qt_fonts(self)
         
         # Set up logging
         self.logger = logging.getLogger('maliphors_inator')

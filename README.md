@@ -29,6 +29,7 @@ Captured from the desktop application using disposable sample data on 2026-11-11
 - Optionally install separate Qt utilities for editing JSON and viewing logs
 - Browse generated malaphors in a gallery-style UI
 - Use the CLI for generation, source phrase search, and phrase import/export
+- Configure shared fonts, Light/Dark/System appearance, window placement and import-table columns through Tools → Interface; export/import interface-only settings
 - Learn with first-launch guidance, a temporary demo, a control tour, guided tasks and searchable offline help (F1)
 
 ## Installation
@@ -62,7 +63,7 @@ The full [alpha technical validation record](RELEASE_PROCESS.md#alpha-technical-
 
 ## Installable Linux build
 
-The current package version is **0.1.0.dev1**, a pre-alpha development build. With an environment active, `python -m pip install .` installs `maliphors-inator` (desktop) and `maliphors-inator-cli`. Add `[qt-tools]` for the optional Qt utilities. Tkinter comes from the operating system.
+The current package version is **0.1.0.dev2**, a pre-alpha development build. With an environment active, `python -m pip install .` installs `maliphors-inator` (desktop) and `maliphors-inator-cli`. Add `[qt-tools]` for the optional Qt utilities. Tkinter comes from the operating system.
 
 Build a wheel and Linux installer archive with `python -m pip install build` then `python scripts/build_linux_release.py`. Extract the generated archive and run `sh install_linux.sh` for an application-menu launcher. See [packaging and fallback instructions](docs/UPGRADES.md#linux-build-and-optional-utilities). This build does not declare alpha readiness or publish a GitHub release.
 
@@ -127,6 +128,8 @@ The [upgrade guide](docs/UPGRADES.md) describes the four-view UI, shared storage
 [ROADMAP.md](ROADMAP.md) records pre-alpha milestones, completed automated gates, and pending daily developer checks. Supporting implementation plans live in [.specify/features/improvements-roadmap](.specify/features/improvements-roadmap).
 
 ## Documentation and testing
+
+[Interface settings](docs/INTERFACE_SETTINGS.md) explains Tools → Interface, English-only UI language, window memory, table sorting and portable settings.
 
 Browse the [documentation index](TOC.md), [FAQ](FAQ.md), and [in-app assistance guide](docs/USER_ASSISTANCE.md).
 

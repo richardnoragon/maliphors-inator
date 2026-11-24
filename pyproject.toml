@@ -22,7 +22,7 @@ maliphors-inator = "main:desktop_main"
 maliphors-inator-cli = "maliphors_inator_cli:main"
 
 [tool.setuptools]
-py-modules = ["main", "maliphors_inator_cli", "maliphors_inator_logic", "maliphors_inator_ui", "app_storage", "library_workflows", "desktop_workflows", "user_assistance", "app_resources", "app_version", "settings_manager", "log_manager"]
+py-modules = ["main", "maliphors_inator_cli", "maliphors_inator_logic", "maliphors_inator_ui", "interface_settings", "app_storage", "library_workflows", "desktop_workflows", "user_assistance", "app_resources", "app_version", "settings_manager", "log_manager"]
 
 [tool.setuptools.dynamic]
 version = {attr = "app_version.__version__"}

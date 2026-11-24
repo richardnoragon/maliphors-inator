@@ -128,3 +128,13 @@ Reproduced issues fixed: interrupted JSON writes could damage the destination; f
 Temporary logs: `/tmp/malaphors-alpha-snapshot-tests.log`, `/tmp/malaphors-alpha-snapshot-install.log`, and `/tmp/malaphors-alpha-snapshot-walkthrough.log`. These may be removed by the system; the manifest, tests, and this summary are retained in the repository. The manifest hashes Python source/test files, the bundled phrase library, requirements, and pytest configuration; its fingerprint is SHA-256 of the sorted JSON file-hash mapping.
 
 The installed daily-test snapshot and repository user-data files were not replaced. Use the reviewed source build for the remaining human reviews. After those pass and any findings are fixed/revalidated, record the alpha decision in the roadmap and synchronize the active status documents.
+
+## Interface settings validation on 2026-11-24
+
+Version `0.1.0.dev2` adds the interface options documented in `docs/INTERFACE_SETTINGS.md`. Local full-suite result: **278 passed in 12.29 seconds** on Linux/Python 3.14.4. The final import-table horizontal-scroll change then passed **50 focused interface/upgrade tests** in 3.84 seconds. Python compilation, `git diff --check`, and 255 local documentation/image targets passed.
+
+Captured and inspected Appearance, Windows, Table Columns and a dark import-review dialog using temporary sample data. Shared menu/control fonts, English selection, scrollable settings tabs and visible action buttons were checked. Window position tests distinguish the requested geometry from the desktop's final placement.
+
+Built the wheel and Linux archive with `.venv/bin/python scripts/build_linux_release.py --no-isolation`. Installed the dev2 wheel into `/tmp/maliphors-interface-package`, launched outside the checkout with disposable data, opened the interface settings, applied System mode and loaded bundled help. Core startup succeeded with neither Qt binding installed. Optional Qt font consistency is covered by a real Qt regression check.
+
+Test logs: `/tmp/maliphors-interface-tests.log`, `/tmp/maliphors-interface-final-focused.log`; build log: `/tmp/maliphors-interface-build.log` (temporary). Personal/installed Daily Test data was not changed. Human usability review remains open. Hosted CI evidence follows after the implementation run completes; no public release or stage promotion is implied.

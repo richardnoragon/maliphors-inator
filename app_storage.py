@@ -109,8 +109,9 @@ def validate_state(name, value):
         raise ValueError(f'Expected an object in {name}')
     if name == 'settings_profiles.json' and any(not isinstance(p, dict) for p in value.values()):
         raise ValueError('Invalid settings profiles')
-    if name == 'ui_preferences.json' and value.get('theme', 'light') not in ('light', 'dark'):
-        raise ValueError('Invalid theme')
+    if name == 'ui_preferences.json':
+        from interface_settings import validate_preferences
+        validate_preferences(value)
     if name == 'generation_preferences.json':
         if not isinstance(value.get('blocked', []), list) or any(not isinstance(pair, list) or len(pair) != 2 or any(not isinstance(s, str) for s in pair) for pair in value.get('blocked', [])):
             raise ValueError('Invalid blocked pairs')

@@ -18,6 +18,10 @@ Implemented: four focused views; unified explicit data location and automatic le
 
 Local verification: 252 tests passed in 8.72 seconds; 246 local document/image targets resolve. The built wheel was installed and smoke-tested outside the checkout without Qt. Human usability review remains pending. The installed legacy Daily Test snapshot has not been replaced by source changes. Hosted CI passed on Linux/Python 3.12 and 3.14, including regressions, package builds and installed-wheel smoke checks. [Run evidence](https://github.com/richardnoragon/maliphors-inator/actions/runs/43012392530) and final validation are recorded in the release process.
 
+## Interface settings — 2026-11-24
+
+Implemented Tools → Interface: common menu/dialog fonts, Light/Dark/System, English-only UI language, remembered window geometry, import-table layout/sorting and portable interface settings. CPU/drive limits and notifications are excluded following maintainer clarification. See [interface options and platform behavior](docs/INTERFACE_SETTINGS.md). Local verification passed 278 full-suite tests plus 50 final focused checks, with a built/installed dev2 wheel and screenshots from disposable data. Human usability review remains open.
+
 ## Near-term priorities
 
 ### 1. Pre-alpha readiness

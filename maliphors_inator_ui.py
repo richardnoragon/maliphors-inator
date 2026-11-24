@@ -11,6 +11,7 @@ import tkinter.ttk as ttk
 from maliphors_inator_logic import MalaphorGenerator
 from user_assistance import UserAssistance
 from desktop_workflows import DesktopWorkflows
+from interface_settings import InterfaceSettings, validate_preferences
 
 
 class MaliphorsInatorApp:
@@ -34,11 +35,14 @@ class MaliphorsInatorApp:
         self.style = ttk.Style(self.root)
         self.preferences = self._load_ui_preferences()
         self.theme_mode = self.preferences.get("theme", "light")
+        self.interface = InterfaceSettings(self)
         self.generator.start_auto_save(interval_seconds=300.0)
         self.setup_gui()
+        self.interface.register_window(self.root, 'main')
         self.assistance = UserAssistance(self)
         self.update_history()
         self._apply_theme(self.root)
+        self.interface.apply_fonts(self.root)
         if self.generator.load_errors:
             names = ", ".join(path.name for path in self.generator.load_errors)
             self.root.after_idle(lambda: tkinter.messagebox.showwarning(
@@ -68,13 +72,14 @@ class MaliphorsInatorApp:
             'Recent Searches': self.show_recent_searches,
             'Undo': self.undo_last_action,
             'Redo': self.redo_last_action,
+            'Interface Settings': lambda: self.interface.show(),
             'Toggle Theme': self.toggle_theme,
             'Backups and Restore': lambda: self.workflows.backups(),
             'Manage Avoided Combinations': self.show_avoided_combinations,
         }
         header = ttk.Frame(self.root)
         header.pack(fill='x', pady=(0,10))
-        ttk.Label(header, text='maliphors-inator', font=('TkDefaultFont', 18, 'bold')).pack(side='left')
+        ttk.Label(header, text='maliphors-inator', font='AppTitleFont').pack(side='left')
         ttk.Button(header, text='Help (F1)', command=lambda: self.assistance.show_help()).pack(side='right')
         status = ttk.Frame(self.root)
         status.pack(side='bottom', fill='x', pady=(8,0))
@@ -101,7 +106,7 @@ class MaliphorsInatorApp:
             return button
         action(row, 'Generate', self.generate_malaphor, 'Combine two different matching source phrases')
         self.sentence_label = tk.Label(generate, text="Click 'Generate' to create a malaphor",
-                                      font=('TkDefaultFont', 18), wraplength=820, height=5, justify='center')
+                                      font='AppResultFont', wraplength=820, height=5, justify='center')
         self.sentence_label.pack(fill='both', expand=True, pady=12)
         primary = ttk.Frame(generate)
         primary.pack(anchor='center')
@@ -273,14 +278,12 @@ class MaliphorsInatorApp:
         """Load preferences without letting a malformed file prevent startup."""
         try:
             data = json.loads(self.UI_PREFERENCES_FILE.read_text(encoding="utf-8"))
-            if not isinstance(data, dict) or data.get("theme", "light") not in ("light", "dark"):
-                raise ValueError("Expected a light or dark theme preference")
-            return data
+            return validate_preferences(data)
         except FileNotFoundError:
             pass
         except (OSError, ValueError, TypeError) as exc:
             self.generator._protect_unreadable_file(self.UI_PREFERENCES_FILE, exc)
-        return {"theme": "light"}
+        return validate_preferences({'theme': 'light'})
 
     def _save_ui_preferences(self):
         self.preferences['theme'] = self.theme_mode
@@ -288,7 +291,8 @@ class MaliphorsInatorApp:
 
     def _theme_palette(self):
         """Return palette values for the active theme."""
-        if self.theme_mode == "dark":
+        theme = self.interface.effective_theme() if hasattr(self, 'interface') else self.theme_mode
+        if theme == "dark":
             return {
                 "bg": "#0f172a",
                 "panel": "#111827",
@@ -322,6 +326,21 @@ class MaliphorsInatorApp:
         palette = self._theme_palette()
         try:
             self.style.theme_use("clam")
+            if hasattr(self, 'interface'):
+                self.interface.configure_fonts()
+            self.style.configure('.', background=palette['bg'], foreground=palette['fg'])
+            self.style.configure('TFrame', background=palette['bg'])
+            self.style.configure('TLabel', background=palette['bg'], foreground=palette['fg'])
+            self.style.configure('TLabelframe', background=palette['bg'])
+            self.style.configure('TLabelframe.Label', background=palette['bg'], foreground=palette['fg'])
+            self.style.configure('Treeview', background=palette['input_bg'], fieldbackground=palette['input_bg'], foreground=palette['input_fg'])
+            self.style.configure('Treeview.Heading', background=palette['panel'], foreground=palette['fg'])
+            self.style.map('Treeview', background=[('selected',palette['select_bg'])], foreground=[('selected',palette['select_fg'])])
+            self.style.configure('TButton', background=palette['button_bg'], foreground=palette['button_fg'])
+            self.style.configure('TCheckbutton', background=palette['bg'], foreground=palette['fg'])
+            self.style.configure('TRadiobutton', background=palette['bg'], foreground=palette['fg'])
+            self.style.configure('TEntry', fieldbackground=palette['input_bg'], foreground=palette['input_fg'])
+            self.style.configure('TSpinbox', fieldbackground=palette['input_bg'], foreground=palette['input_fg'])
             self.style.configure("TNotebook", background=palette["bg"], borderwidth=0)
             self.style.configure("TNotebook.Tab", background=palette["panel"], foreground=palette["fg"], padding=(12, 6))
             self.style.map("TNotebook.Tab", background=[("selected", palette["accent"])], foreground=[("selected", palette["select_fg"])])
@@ -329,10 +348,11 @@ class MaliphorsInatorApp:
         except tk.TclError:
             pass
 
-    def _apply_theme(self, widget):
+    def _apply_theme(self, widget, _nested=False):
         """Apply the current theme recursively to a widget tree."""
         palette = self._theme_palette()
-        self._configure_ttk_style()
+        if not _nested:
+            self._configure_ttk_style()
 
         if isinstance(widget, (tk.Tk, tk.Toplevel, tk.Frame, tk.LabelFrame, tk.Canvas)):
             try:
@@ -340,6 +360,8 @@ class MaliphorsInatorApp:
             except tk.TclError:
                 pass
 
+        if isinstance(widget, tk.Menu):
+            widget.configure(background=palette['panel'], foreground=palette['fg'], activebackground=palette['accent'], activeforeground=palette['select_fg'])
         if isinstance(widget, tk.Label):
             try:
                 widget.configure(bg=palette["bg"], fg=palette["fg"])
@@ -355,7 +377,7 @@ class MaliphorsInatorApp:
                 )
             except tk.TclError:
                 pass
-        elif isinstance(widget, tk.Entry):
+        elif isinstance(widget, (tk.Entry, tk.Spinbox)):
             try:
                 widget.configure(bg=palette["input_bg"], fg=palette["input_fg"], insertbackground=palette["input_fg"])
             except tk.TclError:
@@ -381,20 +403,22 @@ class MaliphorsInatorApp:
                 )
             except tk.TclError:
                 pass
-        elif isinstance(widget, tk.Checkbutton):
+        elif isinstance(widget, (tk.Checkbutton, tk.Radiobutton)):
             try:
                 widget.configure(bg=palette["bg"], fg=palette["fg"], selectcolor=palette["panel"])
             except tk.TclError:
                 pass
 
         for child in widget.winfo_children():
-            self._apply_theme(child)
+            self._apply_theme(child, _nested=True)
 
     def toggle_theme(self):
         """Toggle between light and dark themes."""
-        self.theme_mode = "dark" if self.theme_mode == "light" else "light"
-        self._save_ui_preferences()
-        self._apply_theme(self.root)
+        target = 'light' if self.interface.effective_theme() == 'dark' else 'dark'
+        try:
+            self.interface.commit({'theme':target})
+        except (ValueError, OSError) as exc:
+            tkinter.messagebox.showerror('Theme', str(exc), parent=self.root)
 
     def _format_gallery_card_text(self, entry):
         rating = entry.get("rating", 0.0)
@@ -497,7 +521,7 @@ class MaliphorsInatorApp:
                 card.grid(row=row, column=column, sticky="nsew", padx=8, pady=8)
                 gallery_frame.grid_columnconfigure(column, weight=1)
 
-                tk.Label(card, text=entry.get("malaphor", ""), wraplength=380, justify=tk.LEFT, font=("Arial", 11, "bold")).pack(anchor=tk.W)
+                tk.Label(card, text=entry.get("malaphor", ""), wraplength=380, justify=tk.LEFT, font='AppHeadingFont').pack(anchor=tk.W)
                 tk.Label(card, text=f"Source 1: {entry.get('source1', '')}", wraplength=380, justify=tk.LEFT).pack(anchor=tk.W, pady=(6, 0))
                 tk.Label(card, text=f"Source 2: {entry.get('source2', '')}", wraplength=380, justify=tk.LEFT).pack(anchor=tk.W)
                 rating_value = entry.get("rating", 0.0)
@@ -1833,7 +1857,7 @@ class MaliphorsInatorApp:
         dialog.transient(self.root)
         dialog.grab_set()
 
-        tk.Label(dialog, text="Generate using ratings data?", font=("Arial", 12)).pack(pady=20)
+        tk.Label(dialog, text="Generate using ratings data?", font='TkDefaultFont').pack(pady=20)
 
         mode_var = tk.StringVar(value="smart")
         tk.Radiobutton(dialog, text="Smart Mode (weighted by ratings)", variable=mode_var, value="smart").pack(anchor=tk.W, padx=50)
@@ -1880,6 +1904,7 @@ class MaliphorsInatorApp:
             pass
         if hasattr(self, '_welcome_after'):
             self.root.after_cancel(self._welcome_after)
+        self.interface.close()
         self.assistance.close()
         self._cleanup_tooltips()
         for dialog in self.dialogs.values():
@@ -1911,7 +1936,7 @@ class MaliphorsInatorApp:
         # Title
         title_frame = tk.Frame(dialog)
         title_frame.pack(fill=tk.X, padx=10, pady=10)
-        tk.Label(title_frame, text="Manage Phrase Sources", font=("Arial", 12, "bold")).pack()
+        tk.Label(title_frame, text="Manage Phrase Sources", font='AppHeadingFont').pack()
 
         # Filter by current source
         filter_frame = tk.Frame(dialog)
@@ -1955,7 +1980,7 @@ class MaliphorsInatorApp:
 
                 # Phrase text
                 original = phrase.get("original", "Unknown")[:50] + "..." if len(phrase.get("original", "")) > 50 else phrase.get("original", "Unknown")
-                tk.Label(phrase_frame, text=original, font=("Arial", 9)).pack(side=tk.LEFT, padx=5, pady=3)
+                tk.Label(phrase_frame, text=original, font='TkDefaultFont').pack(side=tk.LEFT, padx=5, pady=3)
 
                 # Source selector
                 current_source = phrase.get("source", "Unknown")
@@ -2223,7 +2248,7 @@ class MaliphorsInatorApp:
             frame = tk.Frame(summary_frame)
             frame.pack(fill=tk.X, pady=2)
             tk.Label(frame, text=label + ":", width=20, anchor=tk.W).pack(side=tk.LEFT)
-            tk.Label(frame, text=value, font=("Arial", 11, "bold")).pack(side=tk.LEFT, padx=20)
+            tk.Label(frame, text=value, font='AppHeadingFont').pack(side=tk.LEFT, padx=20)
 
         # Tabbed interface
         notebook = ttk.Notebook(dialog)
