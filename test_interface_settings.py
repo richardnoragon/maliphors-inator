@@ -133,8 +133,9 @@ def test_dialog_geometry_restores_and_can_be_disabled(app, monkeypatch):
     app.preferences['windows']['Manage Phrases'] = '820x620+32+44'
     dialog = app.show_manage_phrases_dialog()
     app.root.update()
-    assert '820x620+32+44' in requests
-    assert (dialog.winfo_width(), dialog.winfo_height()) == (820,620)
+    expected = fitted_geometry('820x620+32+44', dialog.winfo_screenwidth(), dialog.winfo_screenheight())
+    assert expected in requests
+    assert (dialog.winfo_width(), dialog.winfo_height()) == (min(820,dialog.winfo_screenwidth()),min(620,dialog.winfo_screenheight()))
     dialog.geometry('850x630+40+60')
     app.root.update()
     remembered = app.preferences['windows']['Manage Phrases']
@@ -142,8 +143,8 @@ def test_dialog_geometry_restores_and_can_be_disabled(app, monkeypatch):
     requests.clear()
     reopened = app.show_manage_phrases_dialog()
     app.root.update()
-    assert remembered in requests
-    assert (reopened.winfo_width(), reopened.winfo_height()) == (850,630)
+    assert fitted_geometry(remembered, reopened.winfo_screenwidth(), reopened.winfo_screenheight()) in requests
+    assert (reopened.winfo_width(), reopened.winfo_height()) == (min(850,reopened.winfo_screenwidth()),min(630,reopened.winfo_screenheight()))
     reopened.destroy()
     app.preferences.update(remember_window_size=False, remember_window_position=False)
     default = app.show_manage_phrases_dialog()
@@ -166,8 +167,8 @@ def test_main_geometry_uses_default_when_remembering_is_disabled(app, monkeypatc
     monkeypatch.setattr(app.root, 'geometry', record)
     app.interface.register_window(app.root, 'main')
     app.root.update()
-    assert '900x650+20+30' in requests
-    assert (app.root.winfo_width(), app.root.winfo_height()) == (900,650)
+    assert fitted_geometry('900x650+20+30', app.root.winfo_screenwidth(), app.root.winfo_screenheight()) in requests
+    assert (app.root.winfo_width(), app.root.winfo_height()) == (min(900,app.root.winfo_screenwidth()),min(650,app.root.winfo_screenheight()))
 
 
 @pytest.mark.gui
